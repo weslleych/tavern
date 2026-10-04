@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '../components/dice-sidebar.css';
 
 @theme inline {
   --color-forest: #284e3c;
@@ -156,77 +157,6 @@
 }
 .scene-manage-actions > .button {
   flex: 1;
-}
-.dice-tray {
-  position: absolute;
-  z-index: 4;
-  right: 16px;
-  top: 80px;
-  width: 320px;
-  max-width: calc(100% - 32px);
-  max-height: calc(100% - 96px);
-  overflow-y: auto;
-  padding: 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 12px 40px #17302430;
-}
-.dice-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-.dice-heading h2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 25px;
-}
-.dice-fields {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.dice-fields label {
-  min-width: 0;
-}
-.dice-fields input,
-.dice-fields select {
-  padding: 0 8px;
-}
-.dice-note {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 12px;
-}
-.dice-history {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0;
-}
-.dice-history li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-  border-top: 1px solid var(--border);
-}
-.dice-history li div {
-  display: flex;
-  flex-direction: column;
-}
-.dice-history li span,
-.dice-history li small {
-  color: var(--muted);
-  font-size: 12px;
-}
-.dice-history b {
-  font-family: var(--font-display);
-  font-size: 32px;
 }
 .sprite-options {
   display: flex;
@@ -1580,9 +1510,7 @@ h2 {
   .character-gate-card h1 {
     font-size: 36px;
   }
-  .character-fields select,
-  .dice-fields select,
-  .dice-fields input {
+  .character-fields select {
     font-size: 16px;
   }
   .map-top-tools .role-tag {

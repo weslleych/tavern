@@ -201,7 +201,10 @@ export class GameService {
         .filter((item) => item.roomId === room.id && online.has(item.id))
         .map(publicMember),
       you: publicMember(member),
-      rolls: room.rolls || [],
+      rolls: (room.rolls || []).map((roll) => ({
+        ...roll,
+        role: roll.role ?? (roll.memberId === room.gmId ? 'gm' : 'player'),
+      })),
     });
   }
 
@@ -370,6 +373,7 @@ export class GameService {
         id: randomUUID(),
         memberId: session.id,
         nickname: session.nickname,
+        role: session.role,
         values,
         total: values.reduce((a, b) => a + b, request.modifier),
         createdAt: now(),

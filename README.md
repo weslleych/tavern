@@ -29,24 +29,25 @@ Open [localhost:3000](http://localhost:3000). No database setup is needed: maps 
 - As a player, create a modular pixel character per table, then edit your appearance from your portrait. The GM coordinates without a character.
 - As GM, allow/pause player movement, reposition selected players, and mark a preferred spawn per scene.
 - Spawn near the preferred point (first free tile when unset) and move with WASD, arrows, adjacent clicks, token drops, or touch controls; the server enforces collisions.
-- Roll shared dice with a saved 20-roll history, and reveal/hide terrain with GM-controlled fog of war.
+- Roll shared dice using RPG notation or six quick-roll buttons, with a saved 20-roll sidebar, author badges, individual faces, and a short retro animation. On mobile, open the dice drawer from the toolbar.
+- Reveal/hide terrain with GM-controlled fog of war.
 
 Private session credentials live in browser local storage. **Keep the GM's browser data:** clearing it removes GM access. Invites grant player access; they never share the GM credential. There are no accounts or recovery flow in this MVP.
 
 ## Controls
 
-| Action         | Control                                                                                                      |
-| -------------- | ------------------------------------------------------------------------------------------------------------ |
-| Paint          | Click or drag; `B` selects the brush                                                                         |
-| Select terrain | `1`–`9`, then `0` for Flowers                                                                                |
-| Pan            | Hand tool (`H`), Alt-drag, or middle-button drag                                                             |
-| Zoom           | Scroll, `+` / `−`, or viewport buttons                                                                       |
-| Keyboard paint | Focus the canvas, use arrows, then Enter or Space                                                            |
-| Move character | Move tool (`M`); focused canvas WASD/arrows, adjacent click, one-step token drop, or direction buttons       |
-| GM controls    | Lock button allows/pauses players; select a player in the party or on the map, then click/drag to reposition |
-| Spawn          | GM flag tool; click or arrows + Enter to choose a preferred point per scene                                  |
-| Fog            | GM toggles fog, then uses Reveal/Hide tools with drag or keyboard painting                                   |
-| Dice           | Open the dice tray in the map toolbar                                                                        |
+| Action         | Control                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Paint          | Click or drag; `B` selects the brush                                                                                 |
+| Select terrain | `1`–`9`, then `0` for Flowers                                                                                        |
+| Pan            | Hand tool (`H`), Alt-drag, or middle-button drag                                                                     |
+| Zoom           | Scroll, `+` / `−`, or viewport buttons                                                                               |
+| Keyboard paint | Focus the canvas, use arrows, then Enter or Space                                                                    |
+| Move character | Move tool (`M`); focused canvas WASD/arrows, adjacent click, one-step token drop, or direction buttons               |
+| GM controls    | Lock button allows/pauses players; select a player in the party or on the map, then click/drag to reposition         |
+| Spawn          | GM flag tool; click or arrows + Enter to choose a preferred point per scene                                          |
+| Fog            | GM toggles fog, then uses Reveal/Hide tools with drag or keyboard painting                                           |
+| Dice           | Type `d20`, `2d6+3` or `1d12-2` in the dice log and press Enter, or tap a quick die; toggle the log from the toolbar |
 
 Only the GM edits maps, chooses scenes, and controls fog. Players move their own character one tile at a time when the GM permits it, onto non-empty, unblocked, unoccupied revealed terrain. The GM may reposition players at any distance or behind fog, including while movement is paused. Ordinary collision refusals do not display alerts. Empty or full scenes retain the character with no token until a free tile becomes available.
 

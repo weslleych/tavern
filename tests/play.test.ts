@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { GameService } from '../src/server/game';
 import { FileStore, type Session } from '../src/server/store';
+import { parseDiceNotation } from '../src/lib/dice-notation';
 
 const appearance = {
   skinColor: '#fcd0a1',
@@ -264,6 +265,65 @@ test('dice are generated on the server with bounded faces and a capped, durable 
     }
     const restored = new GameService(new FileStore(f.store.filename));
     assert.equal((await restored.snapshot(f.gm)).rolls.length, 20);
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('parsed GM and player rolls carry trusted roles and survive restart with individual faces', async () => {
+  const f = await fixture();
+  try {
+    for (const [member, expression, role] of [
+      [f.gm, '2d4+3', 'gm'],
+      [f.player, '3d6-2', 'player'],
+    ] as const) {
+      const roll = await f.game.rollDice(member, parseDiceNotation(expression));
+      assert.equal(roll.role, role);
+      assert.equal(roll.nickname, member.nickname);
+      assert.equal(
+        roll.total,
+        roll.values.reduce((sum, value) => sum + value, roll.modifier),
+      );
+      assert.equal(roll.values.length, role === 'gm' ? 2 : 3);
+    }
+    const restored = new GameService(new FileStore(f.store.filename));
+    const history = (await restored.snapshot(f.player)).rolls;
+    assert.deepEqual(
+      history.map((roll) => roll.role),
+      ['gm', 'player'],
+    );
+    assert.deepEqual(
+      history.map((roll) => [roll.count, roll.sides, roll.modifier]),
+      [
+        [2, 4, 3],
+        [3, 6, -2],
+      ],
+    );
+    await assert.rejects(
+      f.game.rollDice(f.player, { sides: 6, count: 1, modifier: 0, role: 'gm' }),
+    );
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('legacy dice history supplies GM and player badges even when authors are offline', async () => {
+  const f = await fixture();
+  try {
+    await f.game.rollDice(f.gm, { count: 1, sides: 20, modifier: 0 });
+    await f.game.rollDice(f.player, { count: 1, sides: 6, modifier: 0 });
+    const data = await f.store.load();
+    for (const roll of data.rooms[0].rolls || []) delete roll.role;
+    await f.store.save(data);
+    const restored = new GameService(new FileStore(f.store.filename));
+    const view = await restored.snapshot(f.hero);
+    assert.deepEqual(view.members, []);
+    assert.deepEqual(
+      view.rolls.map((roll) => roll.role),
+      ['gm', 'player'],
+    );
+    assert.equal(JSON.stringify(view).includes('gmId'), false);
+    assert.equal(JSON.stringify(view).includes('tokenHash'), false);
   } finally {
     await rm(f.directory, { recursive: true, force: true });
   }

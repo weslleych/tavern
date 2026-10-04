@@ -280,11 +280,9 @@ test('GM coordinates players, movement permissions and spawn; player character, 
   await expect(player.locator('.room-error')).toHaveCount(0);
   await expect(player.getByTestId('token-position')).toContainText('3, 1');
   await gm.getByRole('button', { name: 'Toggle fog of war' }).click();
-  await player.getByRole('button', { name: 'Open dice' }).click();
-  await choose(player, 'Dice sides', 'd6');
+  await player.getByLabel('Dice expression').fill('d6');
   await player.getByRole('button', { name: 'Roll dice', exact: true }).click();
   await expect(player.getByTestId('dice-history')).toContainText('1d6');
-  await gm.getByRole('button', { name: 'Open dice' }).click();
   await expect(gm.getByTestId('dice-history')).toContainText('Robo');
   await gm.getByRole('button', { name: 'Close dice' }).click();
   await gm.getByRole('button', { name: 'Duplicate current scene' }).click();

@@ -21,6 +21,7 @@ export function useRoom(code: string) {
   const [status, setStatus] = useState('Connecting');
   const [error, setError] = useState('');
   const [pending, setPending] = useState(0);
+  const [rollAnimations, setRollAnimations] = useState<Record<string, number>>({});
   const socket = useRef<Socket<ServerEvents, ClientEvents> | null>(null);
   const paintQueue = useRef(new Map<string, Tile>());
   const paintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -85,7 +86,12 @@ export function useRoom(code: string) {
           };
         }),
       );
-      connection.on('dice:rolled', (roll) =>
+      connection.on('dice:rolled', (roll) => {
+        const receivedAt = Date.now();
+        setRollAnimations((previous) => ({
+          ...Object.fromEntries(Object.entries(previous).filter(([, until]) => until > receivedAt)),
+          [roll.id]: previous[roll.id] ?? receivedAt + 800,
+        }));
         setSnapshot((previous) =>
           previous
             ? {
@@ -93,8 +99,8 @@ export function useRoom(code: string) {
                 rolls: [...previous.rolls.filter((item) => item.id !== roll.id), roll].slice(-20),
               }
             : previous,
-        ),
-      );
+        );
+      });
       connection.on('tile:updated', (update) =>
         setSnapshot((previous) => {
           if (!previous || previous.panel.id !== update.panelId) return previous;
@@ -181,6 +187,7 @@ export function useRoom(code: string) {
     status,
     error,
     pending,
+    rollAnimations,
     paint,
     clearError: () => setError(''),
     changePanel: (id: string) =>

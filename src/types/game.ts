@@ -58,6 +58,7 @@ export interface DiceRoll extends DiceRequest {
   id: string;
   memberId: string;
   nickname: string;
+  role?: Role;
   values: number[];
   total: number;
   createdAt: string;

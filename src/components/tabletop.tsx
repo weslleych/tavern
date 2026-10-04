@@ -40,11 +40,12 @@ import { Brand } from './ui/brand';
 import { Modal } from './ui/modal';
 import { FormSelect } from './ui/select';
 import { CharacterCreator, CharacterPortrait } from './character-creator';
-import { DiceTray } from './dice-tray';
+import { DiceSidebar } from './dice-sidebar';
 import { MapCanvas } from './canvas/map-canvas';
 import { drawTile } from './canvas/render';
 import { terrainInfo } from '../lib/terrain';
 import { useRoom } from '../lib/use-room';
+import { useMediaQuery } from '../lib/use-media-query';
 import { importSchema, readableError, spriteSchema } from '../lib/validation';
 import { terrains, type Terrain, type MapTool } from '../types/game';
 
@@ -69,7 +70,11 @@ export function Tabletop({ code }: { code: string }) {
     null,
   );
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
-  const [diceOpen, setDiceOpen] = useState(false);
+  const mobileDice = useMediaQuery('(max-width: 979px)');
+  const [desktopDiceOpen, setDesktopDiceOpen] = useState(true);
+  const [mobileDiceOpen, setMobileDiceOpen] = useState(false);
+  const diceOpen = mobileDice ? mobileDiceOpen : desktopDiceOpen;
+  const setDiceOpen = mobileDice ? setMobileDiceOpen : setDesktopDiceOpen;
   const [sprite, setSprite] = useState<string | undefined>();
   const spriteRef = useRef<HTMLInputElement>(null);
   const [sidebar, setSidebar] = useState(false);
@@ -659,7 +664,11 @@ export function Tabletop({ code }: { code: string }) {
                 <button
                   aria-label="Open dice"
                   aria-expanded={diceOpen}
-                  onClick={() => setDiceOpen((open) => !open)}
+                  aria-controls="dice-sidebar"
+                  onClick={() => {
+                    setSidebar(false);
+                    setDiceOpen((open) => !open);
+                  }}
                 >
                   <Dices size={17} />
                 </button>
@@ -696,14 +705,6 @@ export function Tabletop({ code }: { code: string }) {
                 room.updateFog({ panelId: snapshot.panel.id, cells, revealed })
               }
             />
-            {diceOpen && (
-              <DiceTray
-                rolls={snapshot.rolls}
-                disabled={status !== 'Connected'}
-                onRoll={room.rollDice}
-                onClose={() => setDiceOpen(false)}
-              />
-            )}
             <div className="character-hud">
               {!isGM && snapshot.you.character && (
                 <button aria-label="Customize character" onClick={() => setDialog('character')}>
@@ -830,6 +831,15 @@ export function Tabletop({ code }: { code: string }) {
             </span>
           </footer>
         </main>
+        <DiceSidebar
+          rolls={snapshot.rolls}
+          rollAnimations={room.rollAnimations}
+          open={diceOpen}
+          mobile={mobileDice}
+          disabled={status !== 'Connected'}
+          onRoll={room.rollDice}
+          onClose={() => setDiceOpen(false)}
+        />
       </div>
       {notice && (
         <div role="status" className="toast">
@@ -940,7 +950,8 @@ export function Tabletop({ code }: { code: string }) {
                 <div>
                   <dt>Dice</dt>
                   <dd>
-                    Open the dice tray to roll with your party. The table keeps the last 20 rolls.
+                    Use the dice log to roll with your party. Type d20, 2d6+3 or 1d12-2 and press
+                    Enter, or tap a quick die. The table keeps the last 20 rolls.
                   </dd>
                 </div>
                 <div>

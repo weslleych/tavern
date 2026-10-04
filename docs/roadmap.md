@@ -57,6 +57,14 @@ The six-item maintainer request extended or corrected the original phase 4 scope
 
 Current validation and implementation decisions: [phase 4 plan](character_system_plan.md). Domain and Socket.io tests cover permissions, persistence, collision, visibility, reconnect, and scene lifecycle. Browser checks cover GM/player workflows, sprite rendering, keyboard fog, and mobile controls. Live MongoDB integration requires `MONGODB_TEST_URI`; it was not configured for this implementation's verification.
 
+### Dice system & table log evolution — implemented
+
+- [x] Dedicated right sidebar for persistent dice log and party roll history (desktop docked, mobile drawer).
+- [x] Standard RPG dice notation parser (`XdY`, `XdY±Z` for d4, d6, d8, d10, d12, d20) and quick-roll buttons.
+- [x] Visual mini-animation for dice rolling with result settle.
+
+Detailed technical specifications and architecture: [validated dice system plan](dice_system_plan.md). Validation covers trusted GM/player badges, exact shared results, notation limits, concurrent rolls, the 20-record cap, desktop/mobile controls, focus, reconnect, reduced motion, and history without animation replay. All 31 unit/integration tests and 10 browser tests pass, along with lint, TypeScript, formatting, and production build.
+
 ## Operational follow-ups
 
 - [ ] GM recovery or role transfer.

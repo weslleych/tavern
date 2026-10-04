@@ -75,7 +75,7 @@ Tokens spawn on the non-empty, unblocked, unoccupied tile nearest `Panel.spawnPo
 
 `Panel.fog` is optional `{ enabled: boolean, revealed: string[] }`; missing fog means disabled. Keys use `"x,y"`. GM-only mutations accept at most 64 bounded coordinates. Player snapshots omit hidden tiles/sprites and other hidden token positions; the player's own token is retained. Scene summaries never contain tile or fog arrays.
 
-`Room.rolls` optionally stores the last 20 `DiceRoll` records: `id`, `memberId`, `nickname`, `sides`, `count`, `modifier`, `values`, `total`, and `createdAt`. Missing history means no rolls. Faces are generated on the server, rather than accepted from the client. Existing records without characters, tokens, fog, or history need no migration.
+`Room.rolls` optionally stores the last 20 `DiceRoll` records: `id`, `memberId`, `nickname`, optional `role`, `sides`, `count`, `modifier`, `values`, `total`, and `createdAt`. New rolls record the authenticated session's `gm` or `player` role; legacy snapshots infer it from the author and room creator without exposing `gmId`. Missing history means no rolls. Faces are generated on the server, rather than accepted from the client. Existing records without characters, tokens, fog, history, or roll roles need no migration. The notation UI supports d4/d6/d8/d10/d12/d20; server validation retains d100 compatibility. Counts are 1–20 and modifiers are -1000 to +1000.
 
 ## Credentials and shared state
 
