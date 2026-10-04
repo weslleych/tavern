@@ -1,0 +1,45 @@
+{
+  "name": "tavern",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "tsx watch server.ts",
+    "build": "next build",
+    "start": "tsx server.ts --production",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "tsx --test tests/*.test.ts",
+    "test:mongodb": "tsx --test tests/mongodb.integration.ts",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "dotenv": "^17.2.3",
+    "lucide-react": "^0.577.0",
+    "mongodb": "^7.7.0",
+    "next": "16.3.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "socket.io": "4.8.4",
+    "socket.io-client": "4.8.4",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.21.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "16.3.8",
+    "prettier": "^3.9.9",
+    "typescript": "^5.9.3"
+  }
+}

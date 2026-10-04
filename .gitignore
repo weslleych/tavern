@@ -1,0 +1,11 @@
+node_modules/
+.next/
+.tavern/
+.env*
+!.env.example
+*.tsbuildinfo
+test-results/
+playwright-report/
+artifacts/
+.venv/
+*.log
