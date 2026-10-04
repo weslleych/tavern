@@ -1,5 +1,7 @@
 'use client';
 
+import { useFormatter, useTranslations } from 'next-intl';
+
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Crown, Dices, Sparkles, UserRound, X } from 'lucide-react';
 import { diceSides, formatDiceNotation, parseDiceNotation } from '../lib/dice-notation';
@@ -54,6 +56,8 @@ function RollCard({
   animateUntil?: number;
   reducedMotion: boolean;
 }) {
+  const t = useTranslations();
+  const format = useFormatter();
   const [animationUntil] = useState(animateUntil ?? 0);
   const [phase, setPhase] = useState<'rolling' | 'settling' | 'settled'>(() =>
     animationUntil > Date.now() ? 'rolling' : 'settled',
@@ -76,13 +80,19 @@ function RollCard({
         <span
           className={`dice-role ${gm ? 'dice-role-gm' : ''}`}
           role="img"
-          aria-label={gm ? 'Game master' : 'Player'}
+          aria-label={gm ? t('common.gameMaster') : t('common.player')}
         >
           {gm ? <Crown size={14} aria-hidden="true" /> : <UserRound size={14} aria-hidden="true" />}
         </span>
         <strong>{roll.nickname}</strong>
-        <time dateTime={roll.createdAt} title={new Date(roll.createdAt).toLocaleString()}>
-          {new Date(roll.createdAt).toLocaleTimeString([], {
+        <time
+          dateTime={roll.createdAt}
+          title={format.dateTime(new Date(roll.createdAt), {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          })}
+        >
+          {format.dateTime(new Date(roll.createdAt), {
             hour: '2-digit',
             minute: '2-digit',
             hour12: false,
@@ -93,13 +103,17 @@ function RollCard({
         <div className="dice-roll-details">
           {roll.label && (
             <span className="dice-test-label">
-              {roll.label}
+              {roll.attribute
+                ? t('dice.attributeCheck', {
+                    attribute: t(`classes.attributes.${roll.attribute}.name`),
+                  })
+                : roll.label}
               {roll.attribute ? ` · ${signedModifier(roll.modifier)}` : ''}
             </span>
           )}
           <span className="dice-formula">{formatDiceNotation(roll)}</span>
           {rolling ? (
-            <span className="dice-rolling-label">Rolling…</span>
+            <span className="dice-rolling-label">{t('dice.rolling')}</span>
           ) : (
             <span
               className="dice-breakdown"
@@ -140,17 +154,26 @@ function RollCard({
         <div className="dice-highlights">
           {roll.values.includes(20) && (
             <span className="dice-natural dice-natural-high">
-              <Sparkles size={12} aria-hidden="true" /> Nat 20!
+              <Sparkles size={12} aria-hidden="true" /> {t('dice.natural20')}
             </span>
           )}
-          {roll.values.includes(1) && <span className="dice-natural dice-natural-low">Nat 1!</span>}
+          {roll.values.includes(1) && (
+            <span className="dice-natural dice-natural-low">{t('dice.natural1')}</span>
+          )}
         </div>
       )}
       {animateUntil && (
         <p className="sr-only" role="status">
           {rolling
-            ? `${roll.nickname} is rolling ${formatDiceNotation(roll)}`
-            : `${roll.nickname} rolled ${formatDiceNotation(roll)} for ${roll.total}`}
+            ? t('dice.rollingAnnouncement', {
+                nickname: roll.nickname,
+                formula: formatDiceNotation(roll),
+              })
+            : t('dice.rolledAnnouncement', {
+                nickname: roll.nickname,
+                formula: formatDiceNotation(roll),
+                total: roll.total,
+              })}
         </p>
       )}
     </li>
@@ -178,6 +201,7 @@ export function DiceSidebar({
   classes?: CharacterClass[];
   character?: CharacterAppearance;
 }) {
+  const t = useTranslations();
   const selection = findClassSelection(classes ?? [], character?.classId, character?.subclassId);
   const attributes = calculateAttributes(selection?.characterClass, selection?.subclass);
   const [expression, setExpression] = useState('d20');
@@ -208,10 +232,9 @@ export function DiceSidebar({
     setPending(true);
     setError('');
     try {
-      if (!(await onRoll(request)))
-        setError('The roll could not be saved. Try again when connected.');
+      if (!(await onRoll(request))) setError(t('dice.saveDisconnected'));
     } catch {
-      setError('The roll could not be saved. Please try again.');
+      setError(t('dice.saveError'));
     } finally {
       sending.current = false;
       setPending(false);
@@ -222,9 +245,7 @@ export function DiceSidebar({
     if (disabled || sending.current) return;
     const request = parseDiceNotation(expression);
     if (!request) {
-      setError(
-        'Use d4, d6, d8, d10, d12 or d20, with 1–20 dice and a modifier from -1000 to +1000. Example: 2d6+3.',
-      );
+      setError(t('dice.notationHint'));
       return;
     }
     void roll(request);
@@ -234,42 +255,45 @@ export function DiceSidebar({
       <header className="dice-heading">
         <div>
           <h2 id="dice-heading">
-            <Dices size={21} aria-hidden="true" /> Dice log
+            <Dices size={21} aria-hidden="true" /> {t('dice.log')}
           </h2>
-          <p>A little luck, shared.</p>
+          <p>{t('dice.sharedLuck')}</p>
         </div>
-        <button className="icon-button" aria-label="Close dice" onClick={onClose}>
+        <button className="icon-button" aria-label={t('dice.closeDice')} onClick={onClose}>
           <X size={18} aria-hidden="true" />
         </button>
       </header>
       {selection && (
-        <div className="attribute-checks" role="group" aria-label="Attribute checks">
-          <h3>Attribute checks</h3>
+        <div className="attribute-checks" role="group" aria-label={t('dice.attributeChecks')}>
+          <h3>{t('dice.attributeChecks')}</h3>
           <div>
-            {attributeDefinitions.map(({ id, name, abbreviation }) => (
+            {attributeDefinitions.map(({ id }) => (
               <button
                 type="button"
                 key={id}
                 disabled={disabled || pending}
-                aria-label={`Teste de ${name} ${signedModifier(attributes[id])}`}
+                aria-label={t('dice.attributeButton', {
+                  attribute: t(`classes.attributes.${id}.name`),
+                  modifier: signedModifier(attributes[id]),
+                })}
                 onClick={() =>
                   void roll({ sides: 20, count: 1, modifier: attributes[id], attribute: id })
                 }
               >
-                <span>{abbreviation}</span>
+                <span>{t(`classes.attributes.${id}.abbreviation`)}</span>
                 <strong>{signedModifier(attributes[id])}</strong>
               </button>
             ))}
           </div>
         </div>
       )}
-      <form className="dice-roller" onSubmit={submit} aria-label="Roll dice">
-        <div className="dice-quick-rolls" role="group" aria-label="Quick rolls">
+      <form className="dice-roller" onSubmit={submit} aria-label={t('dice.rollDice')}>
+        <div className="dice-quick-rolls" role="group" aria-label={t('dice.quickRolls')}>
           {diceSides.map((sides) => (
             <button
               key={sides}
               type="button"
-              aria-label={`Roll d${sides}`}
+              aria-label={t('dice.rollDie', { sides })}
               disabled={disabled || pending}
               onClick={() => void roll({ sides, count: 1, modifier: 0 })}
             >
@@ -278,7 +302,7 @@ export function DiceSidebar({
             </button>
           ))}
         </div>
-        <label htmlFor="dice-expression">Dice expression</label>
+        <label htmlFor="dice-expression">{t('dice.expression')}</label>
         <input
           ref={input}
           id="dice-expression"
@@ -298,7 +322,7 @@ export function DiceSidebar({
           aria-describedby={error ? 'dice-input-error' : 'dice-input-hint'}
         />
         <p id="dice-input-hint" className="dice-input-hint">
-          1–20 dice · modifier ±1000
+          {t('dice.inputHint')}
         </p>
         {error && (
           <p id="dice-input-error" className="dice-input-error" role="alert">
@@ -307,20 +331,20 @@ export function DiceSidebar({
         )}
         <button className="button primary wide" type="submit" disabled={disabled || pending}>
           <Dices size={16} aria-hidden="true" />
-          {pending ? 'Rolling…' : 'Roll dice'}
+          {pending ? t('dice.rolling') : t('dice.rollDice')}
         </button>
         {disabled && (
           <p className="dice-input-hint" role="status">
-            Reconnect to roll with your party.
+            {t('dice.reconnect')}
           </p>
         )}
       </form>
       <div className="dice-log-scroll" ref={history}>
         <div className="dice-history-heading">
-          <h3>Party rolls</h3>
+          <h3>{t('dice.partyRolls')}</h3>
           <span>{rolls.length} / 20</span>
         </div>
-        <ol className="dice-history" data-testid="dice-history" aria-label="Party roll history">
+        <ol className="dice-history" data-testid="dice-history" aria-label={t('dice.partyHistory')}>
           {rolls.toReversed().map((roll) => (
             <RollCard
               key={roll.id}
@@ -333,11 +357,11 @@ export function DiceSidebar({
         {!rolls.length && (
           <div className="dice-empty">
             <Dices size={32} aria-hidden="true" />
-            <p>The first roll is yours.</p>
-            <small>Everyone at the table shares this log.</small>
+            <p>{t('dice.firstRoll')}</p>
+            <small>{t('dice.everyoneShares')}</small>
           </div>
         )}
-        {rolls.length > 0 && <p className="dice-note">The last 20 rolls stay with your table.</p>}
+        {rolls.length > 0 && <p className="dice-note">{t('dice.lastRolls')}</p>}
       </div>
     </div>
   );

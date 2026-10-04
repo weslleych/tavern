@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type FormEvent } from 'react';
@@ -18,6 +19,9 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import { FormSelect } from './ui/select';
+import { LanguageSwitcher } from './ui/language-switcher';
+import { useClassCatalog } from '../i18n/use-class-catalog';
+import { useErrorMessage } from '../i18n/use-error-message';
 import { ClassManager } from './class-manager';
 import { ClassSummary } from './class-summary';
 import { defaultClasses } from '../lib/classes';
@@ -27,6 +31,8 @@ import { rememberTable, savedTables, sessionFor, type SavedTable } from '../lib/
 import type { Credential, Reply } from '../types/game';
 
 export function Hub() {
+  const t = useTranslations();
+  const formatError = useErrorMessage();
   const router = useRouter();
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [busy, setBusy] = useState(false);
@@ -35,6 +41,7 @@ export function Hub() {
   const [code, setCode] = useState('');
   const [classes, setClasses] = useState(() => structuredClone(defaultClasses));
   const [classManagerOpen, setClassManagerOpen] = useState(false);
+  const displayClasses = useClassCatalog(classes);
   const [previewClassId, setPreviewClassId] = useState(defaultClasses[0].id);
   const previewClass = classes.find((item) => item.id === previewClassId) ?? classes[0];
   useEffect(() => {
@@ -53,7 +60,7 @@ export function Hub() {
     setBusy(true);
     setError('');
     const form = new FormData(event.currentTarget);
-    const name = String(form.get('name') || 'An adventure');
+    const name = String(form.get('name') || t('hub.defaultAdventure'));
     try {
       const response = await fetch(mode === 'create' ? '/api/rooms' : '/api/rooms/join', {
         method: 'POST',
@@ -69,7 +76,7 @@ export function Hub() {
       });
       const reply: Reply<Credential> = await response.json();
       if (!reply.ok) throw new Error(reply.error);
-      rememberTable(reply.data, mode === 'create' ? name : 'Your adventure');
+      rememberTable(reply.data, mode === 'create' ? name : t('hub.yourAdventure'));
       router.push(`/room/${reply.data.roomCode}`);
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Could not reach the tavern. Try again.');
@@ -82,11 +89,12 @@ export function Hub() {
     <div className="hub">
       <header className="hub-nav">
         <Brand />
-        <nav aria-label="Main navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href="#your-tables">Your tables</a>
+        <nav aria-label={t('nav.mainNavigation')}>
+          <LanguageSwitcher />
+          <a href="#how-it-works">{t('nav.howItWorks')}</a>
+          <a href="#your-tables">{t('common.yourTables')}</a>
           <span className="free-badge">
-            <Leaf size={14} /> Free & open source
+            <Leaf size={14} /> {t('nav.openSource')}
           </span>
         </nav>
       </header>
@@ -94,22 +102,19 @@ export function Hub() {
         <section className="hero">
           <div className="hero-copy">
             <span className="eyebrow">
-              <span className="tiny-star">✦</span> There’s a seat for everyone
+              <span className="tiny-star">✦</span> {t('hub.seatForEveryone')}
             </span>
             <h1>
-              A little world.
-              <br />A great adventure.
+              {t('hub.littleWorld')} <br />
+              {t('hub.greatAdventure')}
             </h1>
-            <p>
-              Gather your friends, draw a map, and see where the story takes you. Your next tabletop
-              adventure starts here.
-            </p>
+            <p>{t('hub.heroDescription')}</p>
             <div className="hero-tags">
               <span>
-                <Users size={16} /> Made for friends
+                <Users size={16} /> {t('hub.madeForFriends')}
               </span>
               <span>
-                <ShieldCheck size={16} /> No accounts needed
+                <ShieldCheck size={16} /> {t('hub.noAccounts')}
               </span>
             </div>
           </div>
@@ -117,9 +122,9 @@ export function Hub() {
             <div className="preview-window">
               <div className="preview-heading">
                 <span>
-                  <span className="live-dot" /> A world waiting to happen
+                  <span className="live-dot" /> {t('hub.worldWaiting')}
                 </span>
-                <span className="preview-mini-label">The woodland clearing</span>
+                <span className="preview-mini-label">{t('hub.woodlandPreview')}</span>
               </div>
               <MapPreview />
               <div className="preview-caption">
@@ -127,34 +132,31 @@ export function Hub() {
                   <Compass size={19} />
                 </span>
                 <div>
-                  <strong>Small maps. Endless possibilities.</strong>
-                  <span>Every great story starts somewhere.</span>
+                  <strong>{t('hub.smallMaps')}</strong>
+                  <span>{t('hub.storyStarts')}</span>
                 </div>
                 <span className="preview-grid-label">26 × 18</span>
               </div>
             </div>
             <div className="map-note">
-              <WandSparkles size={15} /> Make it yours, one tile at a time
+              <WandSparkles size={15} /> {t('hub.makeItYours')}
             </div>
           </div>
         </section>
 
         <section className="start-section" aria-labelledby="start-title">
           <div className="start-intro">
-            <span className="section-kicker">The adventure is yours</span>
-            <h2 id="start-title">Pull up a chair.</h2>
-            <p>
-              A table for your party. A canvas for your imagination. Just bring a nickname and a
-              good story.
-            </p>
+            <span className="section-kicker">{t('hub.adventureIsYours')}</span>
+            <h2 id="start-title">{t('hub.pullUpChair')}</h2>
+            <p>{t('hub.startDescription')}</p>
             <div className="steps" id="how-it-works">
               <div>
                 <span className="step-icon">
                   <Plus size={19} />
                 </span>
                 <div>
-                  <strong>Make a little space</strong>
-                  <p>Create a table and become its game master.</p>
+                  <strong>{t('hub.makeSpace')}</strong>
+                  <p>{t('hub.createStep')}</p>
                 </div>
               </div>
               <div>
@@ -162,8 +164,8 @@ export function Hub() {
                   <Map size={19} />
                 </span>
                 <div>
-                  <strong>Set the scene</strong>
-                  <p>Paint forests, rivers, and paths for your party.</p>
+                  <strong>{t('hub.setScene')}</strong>
+                  <p>{t('hub.paintStep')}</p>
                 </div>
               </div>
               <div>
@@ -171,14 +173,14 @@ export function Hub() {
                   <Users size={19} />
                 </span>
                 <div>
-                  <strong>Let the story unfold</strong>
-                  <p>Share your table code. Everyone sees the same world.</p>
+                  <strong>{t('hub.storyUnfold')}</strong>
+                  <p>{t('hub.shareStep')}</p>
                 </div>
               </div>
             </div>
           </div>
           <div className="start-card">
-            <div className="form-tabs" role="tablist" aria-label="Start an adventure">
+            <div className="form-tabs" role="tablist" aria-label={t('hub.startAdventure')}>
               <button
                 role="tab"
                 id="create-tab"
@@ -189,7 +191,7 @@ export function Hub() {
                   setError('');
                 }}
               >
-                <Plus size={17} /> Create a table
+                <Plus size={17} /> {t('hub.createTable')}
               </button>
               <button
                 role="tab"
@@ -201,23 +203,19 @@ export function Hub() {
                   setError('');
                 }}
               >
-                <Users size={17} /> Join a table
+                <Users size={17} /> {t('hub.joinTable')}
               </button>
             </div>
             <form id="table-form" role="tabpanel" aria-labelledby={`${mode}-tab`} onSubmit={submit}>
               <div className="form-intro">
-                <h3>{mode === 'create' ? 'A new story awaits.' : 'Your party is waiting.'}</h3>
-                <p>
-                  {mode === 'create'
-                    ? 'You’ll be the game master of this table.'
-                    : 'Grab the code from your game master.'}
-                </p>
+                <h3>{mode === 'create' ? t('hub.newStory') : t('hub.partyWaiting')}</h3>
+                <p>{mode === 'create' ? t('hub.gmDescription') : t('hub.joinDescription')}</p>
               </div>
               <label>
-                Your nickname
+                {t('hub.nickname')}{' '}
                 <input
                   name="nickname"
-                  placeholder="What should your party call you?"
+                  placeholder={t('hub.nicknamePlaceholder')}
                   required
                   maxLength={24}
                   autoComplete="nickname"
@@ -226,52 +224,55 @@ export function Hub() {
               {mode === 'create' ? (
                 <>
                   <label>
-                    Table name
+                    {t('hub.tableName')}{' '}
                     <input
                       name="name"
-                      placeholder="e.g. The road to Guardia"
+                      placeholder={t('hub.tablePlaceholder')}
                       required
                       maxLength={60}
                     />
                   </label>
                   <label>
-                    Starting map
+                    {t('hub.startingMap')}{' '}
                     <FormSelect
-                      label="Starting map"
+                      label={t('hub.startingMap')}
                       name="template"
                       defaultValue="woodland"
                       options={[
-                        { value: 'woodland', label: 'Woodland clearing · ready to explore' },
-                        { value: 'blank', label: 'Blank canvas · build from scratch' },
+                        { value: 'woodland', label: t('hub.woodlandOption') },
+                        { value: 'blank', label: t('hub.blankOption') },
                       ]}
                     />
                   </label>
-                  <section className="starting-classes" aria-label="Starting classes">
+                  <section className="starting-classes" aria-label={t('hub.startingClasses')}>
                     <div className="starting-classes-heading">
-                      <strong>Starting classes</strong>
+                      <strong>{t('hub.startingClasses')}</strong>
                       <button
                         className="button secondary"
                         type="button"
                         disabled={busy}
                         onClick={() => setClassManagerOpen(true)}
                       >
-                        Configure classes
+                        {t('hub.configureClasses')}
                       </button>
                     </div>
                     <p className="subtle">
                       {classes.length
-                        ? classes.map((item) => item.name).join(' · ')
-                        : 'No classes configured.'}
+                        ? displayClasses.map((item) => item.name).join(' · ')
+                        : t('hub.noClasses')}
                     </p>
                     {previewClass && (
                       <details>
-                        <summary>Preview attributes and traits</summary>
+                        <summary>{t('hub.previewAttributes')}</summary>
                         <FormSelect
-                          label="Preview class"
+                          label={t('hub.previewClass')}
                           value={previewClass.id}
                           disabled={busy}
                           onValueChange={setPreviewClassId}
-                          options={classes.map((item) => ({ value: item.id, label: item.name }))}
+                          options={displayClasses.map((item) => ({
+                            value: item.id,
+                            label: item.name,
+                          }))}
                         />
                         <ClassSummary characterClass={previewClass} />
                       </details>
@@ -280,7 +281,7 @@ export function Hub() {
                 </>
               ) : (
                 <label>
-                  Table code
+                  {t('hub.tableCode')}{' '}
                   <input
                     name="code"
                     placeholder="TVRN-ABC234"
@@ -295,7 +296,7 @@ export function Hub() {
               )}
               {error && (
                 <p role="alert" className="form-error">
-                  {error}
+                  {formatError(error)}
                 </p>
               )}
               <button className="button primary wide" disabled={busy} type="submit">
@@ -307,17 +308,15 @@ export function Hub() {
                   <ArrowRight size={18} />
                 )}
                 {busy
-                  ? 'Opening your table…'
+                  ? t('hub.openingTable')
                   : mode === 'create'
-                    ? 'Create a table'
-                    : 'Join adventure'}
+                    ? t('hub.createTable')
+                    : t('hub.joinAdventure')}
                 {!busy && <ArrowRight size={17} className="button-end" />}
               </button>
               <p className="form-footnote">
                 <ShieldCheck size={14} />
-                {mode === 'create'
-                  ? 'No signup. No rulebooks. Just your imagination.'
-                  : 'Joined before? We’ll restore your saved seat and nickname.'}
+                {mode === 'create' ? t('hub.createFootnote') : t('hub.joinFootnote')}
               </p>
             </form>
           </div>
@@ -326,10 +325,10 @@ export function Hub() {
         <section id="your-tables" className="recent-section">
           <div className="section-heading">
             <div>
-              <span className="section-kicker">Pick up where you left off</span>
-              <h2>Your tables</h2>
+              <span className="section-kicker">{t('hub.pickUpStory')}</span>
+              <h2>{t('common.yourTables')}</h2>
             </div>
-            <span className="subtle">Saved in this browser</span>
+            <span className="subtle">{t('hub.savedBrowser')}</span>
           </div>
           {recent.length ? (
             <div className="recent-grid">
@@ -347,7 +346,7 @@ export function Hub() {
                     <p>
                       <span>
                         {table.role === 'gm' ? <Crown size={13} /> : <Users size={13} />}
-                        {table.role === 'gm' ? 'Game master' : 'Player'}
+                        {table.role === 'gm' ? t('common.gameMaster') : t('common.player')}
                       </span>
                       <span>{table.roomCode}</span>
                     </p>
@@ -360,8 +359,8 @@ export function Hub() {
             <div className="empty-tables">
               <BookOpen size={26} />
               <div>
-                <strong>The first chapter is still unwritten.</strong>
-                <p>Create or join a table and it will appear here.</p>
+                <strong>{t('hub.unwrittenChapter')}</strong>
+                <p>{t('hub.recentDescription')}</p>
               </div>
               <span className="tiny-star">✦</span>
             </div>
@@ -370,8 +369,8 @@ export function Hub() {
       </main>
       <footer className="hub-footer">
         <Brand small />
-        <p>For the stories you’ll tell together.</p>
-        <span>Built for play. Open to everyone.</span>
+        <p>{t('hub.footerStories')}</p>
+        <span>{t('hub.footerPlay')}</span>
       </footer>
       {classManagerOpen && (
         <ClassManager

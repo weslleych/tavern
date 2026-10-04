@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { LoaderCircle } from 'lucide-react';
 import type { CharacterAppearance, CharacterClass } from '../types/game';
@@ -15,6 +16,7 @@ import {
 } from '../lib/characters';
 import { FormSelect } from './ui/select';
 import { drawCharacter } from './canvas/character';
+import { useErrorMessage } from '../i18n/use-error-message';
 
 export function CharacterPortrait({
   appearance,
@@ -77,6 +79,8 @@ export function CharacterCreator({
   editing?: boolean;
   onSave: (appearance: CharacterAppearance) => Promise<boolean>;
 }) {
+  const t = useTranslations();
+  const formatError = useErrorMessage();
   const [appearance, setAppearance] = useState(initial || defaultAppearance);
   const [saving, setSaving] = useState(false);
   const [pane, setPane] = useState<'class' | 'appearance'>(editing ? 'appearance' : 'class');
@@ -120,7 +124,7 @@ export function CharacterCreator({
     <form className="character-creator" onSubmit={submit}>
       {classes.length > 0 &&
         (editing ? (
-          <div className="character-tabs" role="tablist" aria-label="Character customization">
+          <div className="character-tabs" role="tablist" aria-label={t('classes.customization')}>
             {(['appearance', 'class'] as const).map((tab) => (
               <button
                 key={tab}
@@ -147,17 +151,17 @@ export function CharacterCreator({
                   document.getElementById(`${id}-${next}-tab`)?.focus();
                 }}
               >
-                {tab === 'appearance' ? 'Appearance' : 'Class & Specialization'}
+                {tab === 'appearance' ? t('classes.appearance') : t('classes.classSpecialization')}
               </button>
             ))}
           </div>
         ) : (
-          <ol className="character-steps" aria-label="Character creation progress">
+          <ol className="character-steps" aria-label={t('classes.creationProgress')}>
             <li aria-current={!showAppearance ? 'step' : undefined}>
-              <span>1</span> Archetype
+              <span>1</span> {t('classes.archetype')}
             </li>
             <li aria-current={showAppearance ? 'step' : undefined}>
-              <span>2</span> Appearance
+              <span>2</span> {t('classes.appearance')}
             </li>
           </ol>
         ))}
@@ -167,96 +171,94 @@ export function CharacterCreator({
         aria-labelledby={editing && classes.length > 0 ? `${id}-${pane}-tab` : undefined}
       >
         <h2 className="character-step-heading" ref={heading} tabIndex={-1}>
-          {showAppearance ? 'Meet your Adventurer' : 'Choose your Archetype'}
+          {showAppearance ? t('classes.meetAdventurer') : t('classes.chooseArchetype')}
         </h2>
         <p className="modal-description">
-          {showAppearance
-            ? 'Choose your look for this table. You can change it whenever the story takes a new turn.'
-            : 'Discover the paths your game master has created. Choose the strengths and story that suit you.'}
+          {showAppearance ? t('classes.appearanceDescription') : t('classes.archetypeDescription')}
         </p>
         {showAppearance ? (
           <>
             <div className="character-preview">
               <CharacterPortrait appearance={appearance} size={160} />
               <strong>{nickname}</strong>
-              <span>Your adventurer</span>
+              <span>{t('common.yourAdventurer')}</span>
             </div>
             <div className="character-fields">
               <label>
-                Skin tone
+                {t('classes.skinTone')}{' '}
                 <FormSelect
-                  label="Skin tone"
+                  label={t('classes.skinTone')}
                   value={String(appearance.skinColor)}
                   disabled={busy || saving}
                   onValueChange={(value) => change('skinColor', value)}
                   options={skinColors.map((color, index) => ({
                     value: color,
-                    label: `Tone ${index + 1}`,
+                    label: t('classes.tone', { number: index + 1 }),
                   }))}
                 />
               </label>
               <label>
-                Hair style
+                {t('classes.hairStyle')}{' '}
                 <FormSelect
-                  label="Hair style"
+                  label={t('classes.hairStyle')}
                   value={String(appearance.hairStyle)}
                   disabled={busy || saving}
                   onValueChange={(value) => change('hairStyle', Number(value))}
-                  options={hairStyles.map((style, index) => ({
+                  options={hairStyles.map((_, index) => ({
                     value: String(index),
-                    label: style,
+                    label: t(`classes.hairStyles.${index}`),
                   }))}
                 />
               </label>
               <label>
-                Hair color
+                {t('classes.hairColor')}{' '}
                 <FormSelect
-                  label="Hair color"
+                  label={t('classes.hairColor')}
                   value={String(appearance.hairColor)}
                   disabled={busy || saving}
                   onValueChange={(value) => change('hairColor', value)}
                   options={dyeColors.map((color, index) => ({
                     value: color,
-                    label: dyeNames[index],
+                    label: t(`classes.colors.${dyeNames[index].toLowerCase()}`),
                   }))}
                 />
               </label>
               <label>
-                Shirt style
+                {t('classes.shirtStyle')}{' '}
                 <FormSelect
-                  label="Shirt style"
+                  label={t('classes.shirtStyle')}
                   value={String(appearance.shirtStyle)}
                   disabled={busy || saving}
                   onValueChange={(value) => change('shirtStyle', Number(value))}
-                  options={shirtStyles.map((style, index) => ({
+                  options={shirtStyles.map((_, index) => ({
                     value: String(index),
-                    label: style,
+                    label: t(`classes.shirtStyles.${index}`),
                   }))}
                 />
               </label>
               <label>
-                Shirt color
+                {t('classes.shirtColor')}{' '}
                 <FormSelect
-                  label="Shirt color"
+                  label={t('classes.shirtColor')}
                   value={String(appearance.shirtColor)}
                   disabled={busy || saving}
                   onValueChange={(value) => change('shirtColor', value)}
                   options={dyeColors.map((color, index) => ({
                     value: color,
-                    label: dyeNames[index],
+                    label: t(`classes.colors.${dyeNames[index].toLowerCase()}`),
                   }))}
                 />
               </label>
               <label>
-                Pants color
+                {t('classes.pantsColor')}{' '}
                 <FormSelect
-                  label="Pants color"
+                  label={t('classes.pantsColor')}
                   value={String(appearance.pantsColor)}
                   disabled={busy || saving}
                   onValueChange={(value) => change('pantsColor', value)}
                   options={pantsColors.map((color) => ({
                     value: color,
-                    label: dyeNames[dyeColors.indexOf(color)],
+                    label: t(`classes.colors.${dyeNames[dyeColors.indexOf(color)].toLowerCase()}`),
                   }))}
                 />
               </label>
@@ -285,14 +287,12 @@ export function CharacterCreator({
             }
           />
         )}
-        {classes.length === 0 && (
-          <p className="subtle">No classes available. Your game master can add them.</p>
-        )}
+        {classes.length === 0 && <p className="subtle">{t('classes.noClassesAvailable')}</p>}
         <ClassSummary characterClass={characterClass} subclass={subclass} />
       </div>
       {error && (
         <p role="alert" className="form-error">
-          {error}
+          {formatError(error)}
         </p>
       )}
       {!editing && showAppearance && classes.length > 0 && (
@@ -302,12 +302,16 @@ export function CharacterCreator({
           disabled={busy || saving}
           onClick={() => navigate('class')}
         >
-          Back to Classes
+          {t('classes.backToClasses')}
         </button>
       )}
       <button type="submit" className="button primary wide" disabled={busy || saving}>
         {saving && <LoaderCircle size={16} className="spin" />}
-        {editing ? 'Save character' : showAppearance ? 'Enter tabletop' : 'Next: Appearance'}
+        {editing
+          ? t('classes.saveCharacter')
+          : showAppearance
+            ? t('classes.enterTabletop')
+            : t('classes.nextAppearance')}
       </button>
     </form>
   );

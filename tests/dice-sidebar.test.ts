@@ -1,9 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
+import { jsx } from 'react/jsx-runtime';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { DiceRoll } from '../src/types/game';
 import { DiceSidebar } from '../src/components/dice-sidebar';
+import { NextIntlClientProvider } from 'next-intl';
+import messages from '../messages/en.json';
 
 function history(overrides: Partial<DiceRoll>) {
   const roll: DiceRoll = {
@@ -20,14 +23,19 @@ function history(overrides: Partial<DiceRoll>) {
     ...overrides,
   };
   return renderToStaticMarkup(
-    createElement(DiceSidebar, {
-      rolls: [roll],
-      rollAnimations: {},
-      disabled: false,
-      open: true,
-      mobile: false,
-      onRoll: async () => true,
-      onClose: () => {},
+    jsx(NextIntlClientProvider, {
+      locale: 'en',
+      messages,
+      timeZone: 'UTC',
+      children: createElement(DiceSidebar, {
+        rolls: [roll],
+        rollAnimations: {},
+        disabled: false,
+        open: true,
+        mobile: false,
+        onRoll: async () => true,
+        onClose: () => {},
+      }),
     }),
   );
 }

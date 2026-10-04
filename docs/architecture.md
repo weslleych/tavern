@@ -100,6 +100,16 @@ The `health:update` gateway persists the authoritative adjustment, emits room-sc
 
 Player tokens show a 24×3 pixel bar above their nameplate: green above half health, amber from one-quarter through one-half, red below one-quarter, and a KO marker at zero. Party rows and the floating HUD show numeric HP, a proportional meter and a textual unconscious status. The existing native dialog provides quick deltas, damage/healing amounts for players, and exact HP, full healing and maximum bonuses for the GM. It restores focus to the opening control after closing. Controls disable while disconnected or saving; health meters respect reduced motion. The GM's selected-player HUD also offers ±1 HP actions. Class cards and summaries preview base/class/subclass maximum HP, and the class manager edits both modifiers. HP is manual bookkeeping; zero does not pause movement or add combat automation.
 
+## Internationalization
+
+`next-intl` resolves each request from a supported `NEXT_LOCALE` cookie, then quality-weighted `Accept-Language` preferences, then English. Portuguese regional variants use `pt-BR`, and Spanish and English regional variants use `es` and `en`. The root layout provides the selected message catalog and updates HTML language, metadata, and accessibility copy. Routes retain `/`, `/room/[code]`, and `/?join=[code]`; no locale routing middleware intercepts the custom HTTP API or Socket.io.
+
+The shared Radix language select lives in the Hub, character onboarding, desktop table header, and mobile scene sidebar. It stores a one-year, path-wide, SameSite=Lax cookie and a browser-local recovery preference, then refreshes server content without remounting the table, resetting form drafts/camera state, or reconnecting its socket. Browser storage failures do not prevent cookie-based switching. Locale never enters room snapshots or persisted game state.
+
+Message catalogs live in `messages/en.json`, `messages/pt-BR.json`, and `messages/es.json`. Default class/subclass names, descriptions, and traits translate only when the stored field matches its canonical preset. The class editor stages canonical data while displaying translations, so saving a modifier does not replace names or narrative text with the GM's language. Custom catalog prose, nicknames, room/scene names, and ordinary dice labels remain unchanged. Attribute checks render from stable attribute IDs and retain their original bonuses and canonical saved labels. Dice timestamps use localized formatting in UTC. Known API and validation errors translate at the UI boundary without changing backend contracts.
+
+Catalog tests verify recursive key and interpolation parity, nonempty messages, locale fallback, unchanged custom fields, and canonical errors. Browser tests exercise independent participant languages, cookie/recovery behavior, preserved drafts and canvas state, class editing, shared attribute rolls/HP, localized missing routes, and mobile controls.
+
 ## Persistence boundaries
 
 `GameStore` exposes `load`, `save`, and optional `close`. `FileStore` atomically replaces the complete JSON dataset. `MongoStore` loads three collections and replaces changed documents, saving panels before sessions and room pointers.

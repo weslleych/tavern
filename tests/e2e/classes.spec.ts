@@ -26,7 +26,7 @@ test('creation-time catalog editing, player sheet and live attribute rolls stay 
   await gm.getByRole('button', { name: 'Configure classes' }).click();
   const manager = gm.getByRole('dialog', { name: 'Manage classes' });
   await manager.getByLabel('Class name', { exact: true }).fill('Sentinela');
-  await manager.getByLabel('Class Força', { exact: true }).fill('4');
+  await manager.getByLabel('Class Strength', { exact: true }).fill('4');
   await manager.getByRole('button', { name: 'Save classes', exact: true }).click();
   await expect(manager).not.toBeVisible();
   await expect(gm.getByLabel('Starting classes', { exact: true })).toContainText('Sentinela');
@@ -42,43 +42,43 @@ test('creation-time catalog editing, player sheet and live attribute rolls stay 
     const player = await context.newPage();
     await enter(player, credential);
     await player.getByRole('radio', { name: 'Sentinela', exact: true }).check();
-    await player.getByRole('radio', { name: 'Guardião', exact: true }).check();
+    await player.getByRole('radio', { name: 'Guardian', exact: true }).check();
     await expect(player.getByTestId('attribute-forca')).toHaveText('+4');
     await expect(player.getByTestId('attribute-constituicao')).toHaveText('+2');
-    await expect(player.getByLabel('Character attributes')).toContainText('Determinação');
-    await expect(player.getByLabel('Character attributes')).toContainText('Vigilância');
+    await expect(player.getByLabel('Character attributes')).toContainText('Determination');
+    await expect(player.getByLabel('Character attributes')).toContainText('Vigilance');
     await player.getByRole('button', { name: 'Next: Appearance' }).click();
     await player.getByRole('button', { name: 'Enter tabletop' }).click();
     for (const view of [gm, player]) {
-      await expect(view.getByTestId('member-list')).toContainText('Sentinela · Guardião');
+      await expect(view.getByTestId('member-list')).toContainText('Sentinela · Guardian');
     }
-    await expect(player.locator('.character-hud')).toContainText('Sentinela · Guardião');
+    await expect(player.locator('.character-hud')).toContainText('Sentinela · Guardian');
     await expect(player.getByRole('button', { name: 'Manage classes', exact: true })).toHaveCount(
       0,
     );
-    await player.getByRole('button', { name: 'Teste de Força +4', exact: true }).click();
+    await player.getByRole('button', { name: 'Strength check +4', exact: true }).click();
     for (const view of [gm, player]) {
       const card = view.getByTestId('dice-history').locator('li').first();
-      await expect(card).toContainText('Teste de Força');
+      await expect(card).toContainText('Strength check');
       await expect(card).toContainText('1d20 + 4');
       await expect(card).toHaveAttribute('data-state', 'settled');
       await expect(card.getByTestId('dice-breakdown')).toHaveText(/\[\d+\] \+ 4/);
     }
     await gm.getByRole('button', { name: 'Manage classes', exact: true }).click();
     await gm.getByLabel('Class name', { exact: true }).fill('Sentinela Prime');
-    await gm.getByLabel('Class Força', { exact: true }).fill('-2');
+    await gm.getByLabel('Class Strength', { exact: true }).fill('-2');
     await gm.getByRole('button', { name: 'Save classes', exact: true }).click();
     await expect(
-      player.getByRole('button', { name: 'Teste de Força -2', exact: true }),
+      player.getByRole('button', { name: 'Strength check -2', exact: true }),
     ).toBeVisible();
-    await expect(player.locator('.character-hud')).toContainText('Sentinela Prime · Guardião');
-    await expect(gm.getByTestId('member-list')).toContainText('Sentinela Prime · Guardião');
-    await player.getByRole('button', { name: 'Teste de Força -2', exact: true }).click();
+    await expect(player.locator('.character-hud')).toContainText('Sentinela Prime · Guardian');
+    await expect(gm.getByTestId('member-list')).toContainText('Sentinela Prime · Guardian');
+    await player.getByRole('button', { name: 'Strength check -2', exact: true }).click();
     await expect(gm.getByTestId('dice-history').locator('li').first()).toContainText('1d20 - 2');
     await player.getByRole('button', { name: 'Edit your character' }).click();
     await expect(player.getByTestId('attribute-forca')).toHaveText('-2');
     await player.getByRole('tab', { name: 'Class & Specialization' }).click();
-    await player.getByRole('radio', { name: 'Mago', exact: true }).check();
+    await player.getByRole('radio', { name: 'Mage', exact: true }).check();
     await expect(
       player.getByRole('radio', { name: 'No specialization', exact: true }),
     ).toBeChecked();
@@ -86,7 +86,7 @@ test('creation-time catalog editing, player sheet and live attribute rolls stay 
     await player.getByRole('button', { name: 'Save character' }).click();
     await player.reload();
     await expect(
-      player.getByRole('button', { name: 'Teste de Inteligência +2', exact: true }),
+      player.getByRole('button', { name: 'Intelligence check +2', exact: true }),
     ).toBeVisible();
     await gm.screenshot({ path: 'artifacts/classes-desktop.png', fullPage: true });
   } finally {
@@ -118,14 +118,14 @@ test('GM can create and delete classes, subclasses and traits; cancel and valida
   await page.getByLabel('Debuff description', { exact: true }).fill('Easily distracted.');
   await page.getByRole('button', { name: 'Add subclass', exact: true }).click();
   await page.getByLabel('Subclass name', { exact: true }).fill('Poeta');
-  await page.getByLabel('Subclass Carisma', { exact: true }).fill('2');
+  await page.getByLabel('Subclass Charisma', { exact: true }).fill('2');
   await page.getByRole('button', { name: 'Save classes', exact: true }).click();
   await page.getByRole('button', { name: 'Manage classes', exact: true }).click();
   await select(page, 'Edit class', 'Bardo');
   await expect(page.getByLabel('Buff name', { exact: true })).toHaveValue('Inspiração');
   await expect(page.getByLabel('Debuff name', { exact: true })).toHaveValue('Distração');
   await select(page, 'Edit subclass', 'Poeta');
-  await expect(page.getByLabel('Subclass Carisma', { exact: true })).toHaveValue('2');
+  await expect(page.getByLabel('Subclass Charisma', { exact: true })).toHaveValue('2');
   await page.getByRole('button', { name: 'Delete subclass', exact: true }).click();
   await page.getByRole('button', { name: 'Remove buff Inspiração', exact: true }).click();
   await page.getByRole('button', { name: 'Remove debuff Distração', exact: true }).click();
@@ -202,9 +202,9 @@ test('mobile attribute checks support keyboard selection and live deletion clear
     const picker = player.getByRole('radio', { name: 'No class', exact: true });
     await picker.focus();
     await player.keyboard.press('ArrowDown');
-    await expect(player.getByRole('radio', { name: 'Guerreiro', exact: true })).toBeFocused();
-    await expect(player.getByRole('radio', { name: 'Guerreiro', exact: true })).toBeChecked();
-    await player.getByRole('radio', { name: 'Guardião', exact: true }).check();
+    await expect(player.getByRole('radio', { name: 'Warrior', exact: true })).toBeFocused();
+    await expect(player.getByRole('radio', { name: 'Warrior', exact: true })).toBeChecked();
+    await player.getByRole('radio', { name: 'Guardian', exact: true }).check();
     await player.screenshot({ path: 'artifacts/class-onboarding-mobile.png', fullPage: true });
     expect(
       await player.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
@@ -212,33 +212,33 @@ test('mobile attribute checks support keyboard selection and live deletion clear
     await player.getByRole('button', { name: 'Next: Appearance' }).click();
     await player.getByRole('button', { name: 'Enter tabletop' }).click();
     await player.getByRole('button', { name: 'Open dice' }).click();
-    await player.getByRole('button', { name: 'Teste de Inteligência -1', exact: true }).click();
+    await player.getByRole('button', { name: 'Intelligence check -1', exact: true }).click();
     await expect(player.getByTestId('dice-history').locator('li').first()).toContainText(
-      'Teste de Inteligência',
+      'Intelligence check',
     );
     await player.screenshot({ path: 'artifacts/attributes-mobile.png', fullPage: true });
     expect(
       await player.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
     await gm.getByRole('button', { name: 'Manage classes', exact: true }).click();
-    await select(gm, 'Edit subclass', 'Guardião');
+    await select(gm, 'Edit subclass', 'Guardian');
     await gm.getByRole('button', { name: 'Delete subclass', exact: true }).click();
     await gm.getByRole('button', { name: 'Save classes', exact: true }).click();
     await expect(
-      player.getByRole('button', { name: 'Teste de Sabedoria +0', exact: true }),
+      player.getByRole('button', { name: 'Wisdom check +0', exact: true }),
     ).toBeVisible();
     await gm.getByRole('button', { name: 'Manage classes', exact: true }).click();
     await gm.getByRole('button', { name: 'Delete class', exact: true }).click();
     await gm.getByRole('button', { name: 'Save classes', exact: true }).click();
     await expect(player.getByRole('group', { name: 'Attribute checks' })).toHaveCount(0);
     await expect(player.locator('.character-hud .member-class-title')).toHaveCount(0);
-    await expect(gm.getByTestId('member-list')).not.toContainText('Guerreiro');
+    await expect(gm.getByTestId('member-list')).not.toContainText('Warrior');
     await expect(player.getByTestId('dice-history').locator('li')).toHaveCount(1);
     await player.keyboard.press('Escape');
     await player.getByRole('button', { name: 'Edit your character' }).click();
     await player.getByRole('tab', { name: 'Class & Specialization' }).click();
     await expect(player.getByRole('radio', { name: 'No class', exact: true })).toBeChecked();
-    await expect(player.getByLabel('Character attributes')).not.toContainText('Vigilância');
+    await expect(player.getByLabel('Character attributes')).not.toContainText('Vigilance');
   } finally {
     await context.close();
   }
@@ -259,14 +259,14 @@ test('onboarding preserves class and appearance across steps and editing tabs', 
   await expect(page.getByRole('heading', { name: 'Choose your Archetype' })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Hair style' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Enter tabletop' })).toHaveCount(0);
-  const warrior = page.getByRole('radio', { name: 'Guerreiro', exact: true });
+  const warrior = page.getByRole('radio', { name: 'Warrior', exact: true });
   await warrior.check();
   const card = page.locator('.class-card').filter({ has: warrior });
   await expect(card).toContainText('+2 STR');
   await expect(card).toContainText('-1 INT');
-  await expect(card).toContainText('Determinação');
-  await expect(card).toContainText('Disciplina e coragem');
-  await page.getByRole('radio', { name: 'Guardião', exact: true }).check();
+  await expect(card).toContainText('Determination');
+  await expect(card).toContainText('Discipline and courage');
+  await page.getByRole('radio', { name: 'Guardian', exact: true }).check();
   await page.screenshot({ path: 'artifacts/class-onboarding-desktop.png', fullPage: true });
   await page.getByRole('button', { name: 'Next: Appearance' }).click();
   await expect(
@@ -275,13 +275,13 @@ test('onboarding preserves class and appearance across steps and editing tabs', 
   await select(page, 'Hair style', 'Braids');
   await page.getByRole('button', { name: 'Back to Classes' }).click();
   await expect(warrior).toBeChecked();
-  await expect(page.getByRole('radio', { name: 'Guardião', exact: true })).toBeChecked();
-  await page.getByRole('radio', { name: 'Mago', exact: true }).check();
+  await expect(page.getByRole('radio', { name: 'Guardian', exact: true })).toBeChecked();
+  await page.getByRole('radio', { name: 'Mage', exact: true }).check();
   await expect(page.getByRole('radio', { name: 'No specialization', exact: true })).toBeChecked();
   await page.getByRole('button', { name: 'Next: Appearance' }).click();
   await expect(page.getByRole('combobox', { name: 'Hair style' })).toContainText('Braids');
   await page.getByRole('button', { name: 'Enter tabletop' }).click();
-  await expect(page.locator('.character-hud')).toContainText('Mago');
+  await expect(page.locator('.character-hud')).toContainText('Mage');
   await page.getByRole('button', { name: 'Edit your character' }).click();
   const appearance = page.getByRole('tab', { name: 'Appearance', exact: true });
   await expect(appearance).toHaveAttribute('aria-selected', 'true');

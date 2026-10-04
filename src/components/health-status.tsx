@@ -1,7 +1,9 @@
+import { useTranslations } from 'next-intl';
 import { Heart, Skull } from 'lucide-react';
 import type { CharacterHealth } from '../types/game';
 
 export function HealthStatus({ health, nickname }: { health: CharacterHealth; nickname: string }) {
+  const t = useTranslations();
   const ratio = health.current / health.max;
   const state =
     health.current === 0
@@ -19,20 +21,25 @@ export function HealthStatus({ health, nickname }: { health: CharacterHealth; ni
         ) : (
           <Heart size={14} aria-hidden="true" />
         )}
-        {health.current}/{health.max} HP
+        {health.current}/{health.max} {t('common.hp')}
       </span>
       <span
         className="health-track"
         role="meter"
-        aria-label={`${nickname}'s HP`}
+        aria-label={t('health.meterLabel', { nickname })}
         aria-valuemin={0}
         aria-valuemax={health.max}
         aria-valuenow={health.current}
-        aria-valuetext={`${health.current} of ${health.max} HP${health.current === 0 ? ', unconscious' : ''}`}
+        aria-valuetext={t('health.meterValue', {
+          current: health.current,
+          max: health.max,
+          hp: t('common.hp'),
+          state: health.current === 0 ? t('health.unconsciousSuffix') : '',
+        })}
       >
         <span className="health-fill" style={{ transform: `scaleX(${ratio})` }} />
       </span>
-      {health.current === 0 && <span className="health-ko">KO · Unconscious</span>}
+      {health.current === 0 && <span className="health-ko">{t('health.unconscious')}</span>}
     </span>
   );
 }

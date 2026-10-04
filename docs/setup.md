@@ -13,6 +13,8 @@ Open [http://localhost:3000](http://localhost:3000). Create a table and send the
 
 Returning in the same browser restores the private session. Clearing the creator's browser storage loses GM access. Map exports back up scenes, not session access.
 
+Choose English, Português, or Español in the Hub or table language select. On mobile tables, open the scene sidebar to reach it. Each browser keeps its own preference; changing language does not change the party's shared names, maps, or game state. Without a saved choice, Tavern uses a supported browser language or falls back to English. The preference cookie is `NEXT_LOCALE`, with a one-year lifetime, and `tavern:locale:v1` in local storage can recover a missing cookie.
+
 ## Configuration
 
 Copy `.env.example` to `.env.local` when changing defaults. This file is ignored by Git.
@@ -50,6 +52,8 @@ MONGODB_DB=tavern
 | `npm run test:e2e`                        | Browser workflows with independent GM/player contexts            |
 
 Install the browser once with `npx playwright install chromium`. Browser tests launch a development server at `127.0.0.1:3100`, using isolated `.tavern/e2e.json` data. Stop other development servers first: Next.js permits one development instance per working directory. Tests do not overwrite `.tavern/store.json`.
+
+The browser suite uses one worker because its independent contexts share one server/IP and the API's 40 requests/minute allowance. Increasing worker concurrency can produce legitimate HTTP 429 responses; the application rate limit stays enabled during tests.
 
 To check the MongoDB adapter against a real test instance, set `MONGODB_TEST_URI` and run `npm run test:mongodb`. This creates and removes a uniquely named temporary database; it never touches the application's database. The normal test suite requires no database or binary downloads.
 

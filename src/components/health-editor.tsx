@@ -1,10 +1,12 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useRef, useState, type FormEvent } from 'react';
 import type { CharacterHealth, HealthAdjustmentRequest } from '../types/game';
 import { healthAdjustmentSchema, readableError } from '../lib/validation';
 import { Modal } from './ui/modal';
 import { HealthStatus } from './health-status';
+import { useErrorMessage } from '../i18n/use-error-message';
 
 export function HealthEditor({
   memberId,
@@ -25,6 +27,8 @@ export function HealthEditor({
   onAdjust: (request: HealthAdjustmentRequest) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const t = useTranslations();
+  const formatError = useErrorMessage();
   const [saving, setSaving] = useState(false);
   const [localError, setLocalError] = useState('');
   const sending = useRef(false);
@@ -53,23 +57,23 @@ export function HealthEditor({
     void adjust({ [field]: Number(new FormData(event.currentTarget).get(field)) });
   }
   return (
-    <Modal title={`${nickname}'s health`} onClose={onClose}>
+    <Modal title={t('health.title', { nickname })} onClose={onClose}>
       <div className="health-editor" aria-busy={saving}>
         <HealthStatus health={health} nickname={nickname} />
         <p className="subtle">
-          {isGM
-            ? 'Set current HP or adjust the maximum with a bonus.'
-            : 'Track damage and healing for your adventurer.'}{' '}
-          Changes save immediately.
+          {isGM ? t('health.gmHint') : t('health.playerHint')} {t('health.immediateChanges')}
         </p>
         <fieldset disabled={disabled} className="health-quick-actions">
-          <legend className="sr-only">Quick health changes</legend>
+          <legend className="sr-only">{t('health.quickChanges')}</legend>
           {(isGM ? [-5, -1, 1, 5] : [-1, 1]).map((delta) => (
             <button
               type="button"
               className="button secondary"
               key={delta}
-              aria-label={`${delta > 0 ? '+' : ''}${delta} HP`}
+              aria-label={t('health.delta', {
+                delta: `${delta > 0 ? '+' : ''}${delta}`,
+                hp: t('common.hp'),
+              })}
               onClick={() => void adjust({ delta })}
             >
               {delta > 0 ? '+' : ''}
@@ -82,7 +86,7 @@ export function HealthEditor({
               className="button secondary"
               onClick={() => void adjust({ current: health.max })}
             >
-              Heal to full
+              {t('health.healFull')}
             </button>
           )}
         </fieldset>
@@ -90,7 +94,7 @@ export function HealthEditor({
           <>
             <form onSubmit={(event) => submit(event, 'current')}>
               <label>
-                Current HP
+                {t('health.currentHP')}{' '}
                 <input
                   key={health.current}
                   name="current"
@@ -104,12 +108,12 @@ export function HealthEditor({
                 />
               </label>
               <button type="submit" className="button secondary" disabled={disabled}>
-                Set current HP
+                {t('health.setCurrent')}
               </button>
             </form>
             <form onSubmit={(event) => submit(event, 'gmBonus')}>
               <label>
-                Maximum HP bonus
+                {t('health.maxBonus')}{' '}
                 <input
                   key={health.gmBonus}
                   name="gmBonus"
@@ -123,13 +127,10 @@ export function HealthEditor({
                 />
               </label>
               <button type="submit" className="button secondary" disabled={disabled}>
-                Apply bonus
+                {t('health.applyBonus')}
               </button>
             </form>
-            <p className="subtle">
-              Maximum HP = base 20 + class + specialization + GM bonus (minimum 1). Increasing the
-              maximum does not heal.
-            </p>
+            <p className="subtle">{t('health.maximumHint')}</p>
           </>
         ) : (
           <form
@@ -143,7 +144,7 @@ export function HealthEditor({
             }}
           >
             <label>
-              Damage or healing amount
+              {t('health.amount')}{' '}
               <input
                 name="amount"
                 type="number"
@@ -157,22 +158,22 @@ export function HealthEditor({
             </label>
             <div className="health-quick-actions">
               <button type="submit" className="button secondary" value="damage" disabled={disabled}>
-                Apply damage
+                {t('health.applyDamage')}
               </button>
               <button type="submit" className="button secondary" value="heal" disabled={disabled}>
-                Apply healing
+                {t('health.applyHealing')}
               </button>
             </div>
           </form>
         )}
         {(error || localError) && (
           <p role="alert" className="form-error">
-            {error || localError}
+            {formatError(error || localError)}
           </p>
         )}
         <div className="modal-actions">
           <button type="button" className="button primary" onClick={onClose}>
-            Done
+            {t('common.done')}
           </button>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 import { Check } from 'lucide-react';
 import {
@@ -7,6 +8,7 @@ import {
   DEFAULT_BASE_HP,
 } from '../lib/classes';
 import type { CharacterClass, CharacterSubclass } from '../types/game';
+import { useClassCatalog } from '../i18n/use-class-catalog';
 
 function ChoiceDetails({
   definition,
@@ -15,6 +17,7 @@ function ChoiceDetails({
   definition: CharacterSubclass;
   baseClass?: CharacterClass;
 }) {
+  const t = useTranslations();
   return (
     <>
       {definition.description && (
@@ -24,16 +27,17 @@ function ChoiceDetails({
         <span
           className={`modifier-badge ${(definition.healthModifier ?? 0) >= 0 ? 'positive' : 'negative'}`}
         >
-          {signedModifier(definition.healthModifier ?? 0)} HP
+          {signedModifier(definition.healthModifier ?? 0)} {t('common.hp')}
         </span>
-        {attributeDefinitions.flatMap(({ id, abbreviation, name }) =>
+        {attributeDefinitions.flatMap(({ id }) =>
           definition.attributes[id] ? (
             <span
               className={`modifier-badge ${definition.attributes[id] > 0 ? 'positive' : 'negative'}`}
               key={id}
-              title={name}
+              title={t(`classes.attributes.${id}.name`)}
             >
-              {signedModifier(definition.attributes[id])} {abbreviation}
+              {signedModifier(definition.attributes[id])}{' '}
+              {t(`classes.attributes.${id}.abbreviation`)}
             </span>
           ) : (
             []
@@ -41,7 +45,7 @@ function ChoiceDetails({
         )}
       </span>
       <span className="class-card-description">
-        Maximum HP:{' '}
+        {t('classes.maximumHP')}{' '}
         {baseClass ? calculateMaxHealth(baseClass, definition) : calculateMaxHealth(definition)}
       </span>
       <span className="trait-badges">
@@ -52,7 +56,7 @@ function ChoiceDetails({
               key={`${kind}-${trait.id}`}
               title={trait.description}
             >
-              {kind === 'buffs' ? 'Buff' : 'Debuff'} · {trait.name}
+              {kind === 'buffs' ? t('classes.buff') : t('classes.debuff')} · {trait.name}
             </span>
           )),
         )}
@@ -62,9 +66,9 @@ function ChoiceDetails({
 }
 
 export function ClassPicker({
-  classes,
-  characterClass,
-  subclass,
+  classes: catalog,
+  characterClass: selectedClass,
+  subclass: selectedSubclass,
   disabled,
   onClassChange,
   onSubclassChange,
@@ -76,27 +80,31 @@ export function ClassPicker({
   onClassChange: (id?: string) => void;
   onSubclassChange: (id?: string) => void;
 }) {
+  const t = useTranslations();
+  const classes = useClassCatalog(catalog);
+  const characterClass = classes.find((item) => item.id === selectedClass?.id);
+  const subclass = characterClass?.subclasses.find((item) => item.id === selectedSubclass?.id);
   const id = useId();
   return (
     <div className="class-picker">
-      <div className="class-cards-grid" role="radiogroup" aria-label="Class">
+      <div className="class-cards-grid" role="radiogroup" aria-label={t('classes.class')}>
         <label className={`class-card ${!characterClass ? 'class-card-selected' : ''}`}>
           <input
             className="class-choice-radio"
             type="radio"
             name={`${id}-class`}
-            aria-label="No class"
+            aria-label={t('classes.noClass')}
             checked={!characterClass}
             disabled={disabled}
             onChange={() => onClassChange()}
           />
           <span className="class-card-heading">
-            No class {!characterClass && <Check size={16} aria-hidden="true" />}
+            {t('classes.noClass')} {!characterClass && <Check size={16} aria-hidden="true" />}
           </span>
+          <span className="class-card-description">{t('classes.freeform')}</span>
           <span className="class-card-description">
-            Follow your own path with a freeform adventurer.
+            {t('classes.maximumHP')} {DEFAULT_BASE_HP}
           </span>
-          <span className="class-card-description">Maximum HP: {DEFAULT_BASE_HP}</span>
         </label>
         {classes.map((item) => (
           <label
@@ -120,22 +128,27 @@ export function ClassPicker({
         ))}
       </div>
       {characterClass && characterClass.subclasses.length > 0 && (
-        <section className="subclass-choices" aria-label="Specializations">
-          <h3>Choose a specialization</h3>
-          <p className="subtle">Build on your archetype, or keep its core strengths.</p>
-          <div className="subclass-chips" role="radiogroup" aria-label="Specialization">
+        <section className="subclass-choices" aria-label={t('classes.specializations')}>
+          <h3>{t('classes.chooseSpecialization')}</h3>
+          <p className="subtle">{t('classes.specializationDescription')}</p>
+          <div
+            className="subclass-chips"
+            role="radiogroup"
+            aria-label={t('classes.specialization')}
+          >
             <label className={`subclass-chip ${!subclass ? 'class-card-selected' : ''}`}>
               <input
                 className="class-choice-radio"
                 type="radio"
                 name={`${id}-subclass`}
-                aria-label="No specialization"
+                aria-label={t('classes.noSpecialization')}
                 checked={!subclass}
                 disabled={disabled}
                 onChange={() => onSubclassChange()}
               />
               <span className="class-card-heading">
-                No specialization {!subclass && <Check size={16} aria-hidden="true" />}
+                {t('classes.noSpecialization')}{' '}
+                {!subclass && <Check size={16} aria-hidden="true" />}
               </span>
             </label>
             {characterClass.subclasses.map((item) => (

@@ -119,6 +119,20 @@ Detailed specifications and implementation plan: [health system plan](health_sys
 
 Phase 8 verification passes all 60 domain/integration tests and 23 browser tests, TypeScript, lint, formatting, and production build. Health regressions cover bounds, persisted GM/player authority, room isolation, concurrent deltas, failed writes, legacy migration, catalog changes, durable reconnect/restart, canvas proportions/colors/KO, class previews, modal focus restoration, and mobile reduced-motion controls. Live MongoDB integration was not run because `MONGODB_TEST_URI` was not configured.
 
+## Phase 9: Multi-language support (i18n) with next-intl — implemented
+
+- [x] Internationalization framework using `next-intl` for Next.js App Router.
+- [x] Support for three initial locales: English (`en`, default), Spanish (`es`), and Brazilian Portuguese (`pt-BR`).
+- [x] Cookie and header-based locale detection preserving clean table URLs (`/`, `/room/[code]`) and per-player language autonomy.
+- [x] Dedicated accessible language switcher component (`LanguageSwitcher`) in the Hub navigation and Tabletop topbar/sidebar.
+- [x] Modular message catalogs (`messages/en.json`, `messages/es.json`, `messages/pt-BR.json`) covering Hub, Tabletop editor, Canvas HUD, Character Creator, Class Manager, Dice Sidebar, and Health systems.
+- [x] Localized class presets and terrain tooltips with full backward compatibility for existing rooms, tests, and saves.
+- [x] Comprehensive verification suite: catalog parity tests, locale cookie persistence, language switcher interaction, and Playwright e2e specs.
+
+Detailed specifications and implementation plan: [i18n plan](i18n_plan.md).
+
+Phase 9 verification passes all 65 unit/domain/integration tests and 29 browser tests, TypeScript, lint, formatting, and production build. Regressions cover locale negotiation, preference persistence/recovery, localized errors, mobile layouts, independent participant languages, and language changes preserving drafts, camera, private sessions, custom catalog text, authoritative dice results, and health synchronization. Playwright uses one worker to respect the application's shared-IP API rate limit.
+
 ## Operational follow-ups
 
 - [ ] GM recovery or role transfer.

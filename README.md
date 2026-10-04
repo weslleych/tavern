@@ -17,6 +17,7 @@ Open [localhost:3000](http://localhost:3000). No database setup is needed: maps 
 
 ## Features
 
+- Use the interface in English, Brazilian Portuguese, or Spanish, with an independent language preference for each browser and unchanged invite URLs.
 - Create a table as its GM, join by code or invite, and return from the same browser.
 - Create, rename, order, duplicate, and remove scenes; keep 1–30 per table and switch the whole party between them.
 - Paint nine terrain types, erase, and mark blocked tiles on configurable 5–64 column/row maps; add optional PNG sprites.

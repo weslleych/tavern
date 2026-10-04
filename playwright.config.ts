@@ -3,6 +3,8 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
+  // All browser contexts share one IP and the server's 40 requests/minute allowance.
+  workers: 1,
   use: {
     baseURL: 'http://127.0.0.1:3100',
     headless: true,

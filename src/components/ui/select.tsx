@@ -76,7 +76,7 @@ export function FormSelect({
   ...props
 }: React.ComponentProps<typeof Select> & {
   label: string;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; lang?: string }[];
 }) {
   const id = React.useId();
   const [container, setContainer] = React.useState<HTMLElement>();
@@ -94,7 +94,7 @@ export function FormSelect({
       </SelectTrigger>
       <SelectContent container={container}>
         {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
+          <SelectItem key={option.value} value={option.value} lang={option.lang}>
             {option.label}
           </SelectItem>
         ))}

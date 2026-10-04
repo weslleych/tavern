@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import './globals.css';
 
 const dmSans = localFont({
@@ -20,23 +22,29 @@ const pixelifySans = localFont({
   fallback: ['Trebuchet MS', 'sans-serif'],
 });
 
-export const metadata: Metadata = {
-  title: 'Tavern — A place for your next adventure',
-  description:
-    'A free, open-source virtual tabletop. Build little worlds, gather your friends, and tell a great story.',
-};
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('nav');
+  return { title: t('metadataTitle'), description: t('metadataDescription') };
+}
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const [locale, messages, t] = await Promise.all([
+    getLocale(),
+    getMessages(),
+    getTranslations('nav'),
+  ]);
   return (
     <html
-      lang="en"
+      lang={locale}
       className={`${dmSans.variable} ${pixelifySans.variable}`}
       data-scroll-behavior="smooth"
     >
       <body>
-        <a className="skip-link" href="#main-content">
-          Skip to main content
-        </a>
-        {children}
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <a className="skip-link" href="#main-content">
+            {t('skipLink')}
+          </a>
+          {children}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

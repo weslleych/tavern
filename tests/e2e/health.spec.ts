@@ -145,21 +145,21 @@ test('class health modifiers preview onboarding, fill initial HP and recalculate
   const manager = gm.getByRole('dialog', { name: 'Manage classes' });
   await manager.getByLabel('Class health modifier', { exact: true }).fill('7');
   await manager.getByRole('combobox', { name: 'Edit subclass', exact: true }).click();
-  await gm.getByRole('option', { name: 'Guardião', exact: true }).click();
+  await gm.getByRole('option', { name: 'Guardian', exact: true }).click();
   await manager.getByLabel('Subclass health modifier', { exact: true }).fill('3');
   await manager.getByRole('button', { name: 'Save classes', exact: true }).click();
   const context = await browser.newContext();
   try {
     const player = await context.newPage();
     await enter(player, credentials.player);
-    await player.getByRole('radio', { name: 'Guerreiro', exact: true }).check();
+    await player.getByRole('radio', { name: 'Warrior', exact: true }).check();
     await expect(
-      player.getByRole('radio', { name: 'Guerreiro', exact: true }).locator('..'),
+      player.getByRole('radio', { name: 'Warrior', exact: true }).locator('..'),
     ).toContainText('+7 HP');
     await expect(
-      player.getByRole('radio', { name: 'Guerreiro', exact: true }).locator('..'),
+      player.getByRole('radio', { name: 'Warrior', exact: true }).locator('..'),
     ).toContainText('Maximum HP: 27');
-    await player.getByRole('radio', { name: 'Guardião', exact: true }).check();
+    await player.getByRole('radio', { name: 'Guardian', exact: true }).check();
     await expect(player.getByLabel('Character attributes')).toContainText('Maximum HP: 30');
     await player.getByRole('button', { name: 'Next: Appearance' }).click();
     await player.getByRole('button', { name: 'Enter tabletop' }).click();

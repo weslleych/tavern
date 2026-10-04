@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   useCallback,
   useEffect,
@@ -51,6 +52,7 @@ export function MapCanvas({
   onSpawn,
   onFog,
 }: Props) {
+  const t = useTranslations();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<HTMLCanvasElement | null>(null);
   const size = useRef({ width: 0, height: 0 });
@@ -487,7 +489,7 @@ export function MapCanvas({
     <div className="canvas-area">
       <canvas
         ref={canvasRef}
-        aria-label="Map canvas"
+        aria-label={t('tabletop.mapCanvas')}
         aria-describedby="map-instructions"
         tabIndex={0}
         role="application"
@@ -528,33 +530,33 @@ export function MapCanvas({
         onWheel={(event) => zoom(event.deltaY > 0 ? 1 / 1.1 : 1.1)}
       />
       <div className="map-coordinate" aria-live="polite">
-        {panel.grid.cols} × {panel.grid.rows} <span>/</span> 32 px tiles
+        {panel.grid.cols} × {panel.grid.rows} <span>/</span> {t('tabletop.pixelTiles')}
       </div>
       {tool === 'move' && (
-        <div className="movement-pad" aria-label="Character movement">
+        <div className="movement-pad" aria-label={t('tabletop.characterMovement')}>
           <button
-            aria-label="Move up"
+            aria-label={t('tabletop.moveUp')}
             disabled={!canMove || !target?.token}
             onClick={() => step(0, -1)}
           >
             <ArrowUp size={18} />
           </button>
           <button
-            aria-label="Move left"
+            aria-label={t('tabletop.moveLeft')}
             disabled={!canMove || !target?.token}
             onClick={() => step(-1, 0)}
           >
             <ArrowLeft size={18} />
           </button>
           <button
-            aria-label="Move down"
+            aria-label={t('tabletop.moveDown')}
             disabled={!canMove || !target?.token}
             onClick={() => step(0, 1)}
           >
             <ArrowDown size={18} />
           </button>
           <button
-            aria-label="Move right"
+            aria-label={t('tabletop.moveRight')}
             disabled={!canMove || !target?.token}
             onClick={() => step(1, 0)}
           >
@@ -563,30 +565,33 @@ export function MapCanvas({
         </div>
       )}
       <div className="zoom-controls">
-        <button className="icon-button" onClick={() => zoom(1 / 1.2)} aria-label="Zoom out">
+        <button
+          className="icon-button"
+          onClick={() => zoom(1 / 1.2)}
+          aria-label={t('tabletop.zoomOut')}
+        >
           <Minus size={16} />
         </button>
         <span>{Math.round(camera.zoom * 100)}%</span>
-        <button className="icon-button" onClick={() => zoom(1.2)} aria-label="Zoom in">
+        <button className="icon-button" onClick={() => zoom(1.2)} aria-label={t('tabletop.zoomIn')}>
           <Plus size={16} />
         </button>
         <span className="control-divider" />
-        <button className="icon-button" onClick={fit} aria-label="Fit map to view">
+        <button className="icon-button" onClick={fit} aria-label={t('tabletop.fitMap')}>
           <Crosshair size={17} />
         </button>
       </div>
       <p id="map-instructions" className="sr-only">
         {tool === 'move'
           ? you.role === 'gm'
-            ? 'Select a player in the party or click their token. Click a destination or drag the player to move them. Arrow keys move the selected player.'
-            : 'Use WASD or arrow keys to move one tile. Click an adjacent tile or drag your token one step.'
+            ? t('tabletop.gmMoveInstructions')
+            : t('tabletop.playerMoveInstructions')
           : tool === 'spawn'
-            ? 'Click the preferred spawn tile, or select it with arrows and press Enter.'
+            ? t('tabletop.spawnInstructions')
             : canEdit
-              ? 'Drag to paint. Alt-drag or use the Hand tool to pan. Arrow keys select a tile; Enter paints it.'
-              : 'Drag to pan. Your game master controls the map.'}{' '}
-        Hold the right or middle mouse button and drag to pan with any tool. Scroll or use plus and
-        minus to zoom. Keyboard tile {cursor.x + 1}, {cursor.y + 1}.
+              ? t('tabletop.paintInstructions')
+              : t('tabletop.panInstructions')}{' '}
+        {t('tabletop.keyboardInstructions', { x: cursor.x + 1, y: cursor.y + 1 })}
       </p>
     </div>
   );

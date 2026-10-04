@@ -1,4 +1,6 @@
 'use client';
+
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 
@@ -11,6 +13,7 @@ export function Modal({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const t = useTranslations();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -35,7 +38,7 @@ export function Modal({
     >
       <div className="modal-heading">
         <h2 id="modal-title">{title}</h2>
-        <button className="icon-button" onClick={onClose} aria-label="Close dialog">
+        <button className="icon-button" onClick={onClose} aria-label={t('errors.closeDialog')}>
           <X size={19} />
         </button>
       </div>

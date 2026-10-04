@@ -192,3 +192,58 @@ export const defaultClasses: CharacterClass[] = [
     ],
   },
 ];
+
+type PresetTranslator = (key: string) => string;
+
+// Translate unchanged preset fields only. Room catalogs and custom prose remain authoritative.
+export function localizeClassDefinition<T extends CharacterSubclass>(
+  value: T,
+  baseline: CharacterSubclass | undefined,
+  translate: PresetTranslator,
+): T {
+  if (!baseline) return value;
+  const field = (key: 'name' | 'description') =>
+    value[key] === baseline[key] ? translate(`${baseline.id}.${key}`) : value[key];
+  const traits = (kind: 'buffs' | 'debuffs') =>
+    value[kind].map((trait) => {
+      const original = baseline[kind].find((item) => item.id === trait.id);
+      const prefix = kind === 'buffs' ? 'buff' : 'debuff';
+      return {
+        ...trait,
+        name:
+          original && trait.name === original.name
+            ? translate(`${baseline.id}.${prefix}Name`)
+            : trait.name,
+        description:
+          original && trait.description === original.description
+            ? translate(`${baseline.id}.${prefix}Description`)
+            : trait.description,
+      };
+    });
+  return {
+    ...value,
+    name: field('name'),
+    description: field('description'),
+    buffs: traits('buffs'),
+    debuffs: traits('debuffs'),
+  };
+}
+
+export function localizeClasses(
+  classes: CharacterClass[],
+  translate: PresetTranslator,
+): CharacterClass[] {
+  return classes.map((item) => {
+    const baseline = defaultClasses.find((preset) => preset.id === item.id);
+    return {
+      ...localizeClassDefinition(item, baseline, translate),
+      subclasses: item.subclasses.map((subclass) =>
+        localizeClassDefinition(
+          subclass,
+          baseline?.subclasses.find((preset) => preset.id === subclass.id),
+          translate,
+        ),
+      ),
+    };
+  });
+}

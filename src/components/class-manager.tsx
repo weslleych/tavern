@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useRef, useState, type FormEvent } from 'react';
 import { Plus, Trash2, LoaderCircle } from 'lucide-react';
 import { attributeDefinitions, calculateAttributes } from '../lib/classes';
@@ -7,11 +8,13 @@ import { classesSchema, readableError } from '../lib/validation';
 import type { CharacterClass, CharacterSubclass, CharacterTrait } from '../types/game';
 import { Modal } from './ui/modal';
 import { FormSelect } from './ui/select';
+import { useClassCatalog } from '../i18n/use-class-catalog';
+import { useErrorMessage } from '../i18n/use-error-message';
 
-function newDefinition(): CharacterSubclass {
+function newDefinition(name: string): CharacterSubclass {
   return {
     id: crypto.randomUUID(),
-    name: 'New class',
+    name,
     description: '',
     attributes: calculateAttributes(),
     healthModifier: 0,
@@ -23,22 +26,27 @@ function newDefinition(): CharacterSubclass {
 function TraitEditor({
   kind,
   traits,
+  displayTraits,
   onChange,
 }: {
   kind: 'Buff' | 'Debuff';
   traits: CharacterTrait[];
+  displayTraits: CharacterTrait[];
   onChange: (traits: CharacterTrait[]) => void;
 }) {
+  const t = useTranslations();
+  const isBuff = kind === 'Buff';
+  const kindLabel = t(isBuff ? 'classes.buff' : 'classes.debuff');
   return (
     <fieldset className="trait-editor">
-      <legend>{kind}s</legend>
+      <legend>{t(isBuff ? 'classes.buffs' : 'classes.debuffs')}</legend>
       {traits.map((trait) => (
         <div className="trait-editor-row" key={trait.id}>
           <label>
-            {kind} name
+            {t(isBuff ? 'classes.buffName' : 'classes.debuffName')}
             <input
-              aria-label={`${kind} name`}
-              value={trait.name}
+              aria-label={t(isBuff ? 'classes.buffName' : 'classes.debuffName')}
+              value={displayTraits.find((item) => item.id === trait.id)?.name ?? trait.name}
               required
               maxLength={60}
               onChange={(event) =>
@@ -51,10 +59,12 @@ function TraitEditor({
             />
           </label>
           <label>
-            {kind} description
+            {t(isBuff ? 'classes.buffDescription' : 'classes.debuffDescription')}
             <textarea
-              aria-label={`${kind} description`}
-              value={trait.description}
+              aria-label={t(isBuff ? 'classes.buffDescription' : 'classes.debuffDescription')}
+              value={
+                displayTraits.find((item) => item.id === trait.id)?.description ?? trait.description
+              }
               maxLength={240}
               rows={2}
               onChange={(event) =>
@@ -69,7 +79,10 @@ function TraitEditor({
           <button
             type="button"
             className="icon-button"
-            aria-label={`Remove ${kind.toLowerCase()} ${trait.name}`}
+            aria-label={t('classes.removeTrait', {
+              kind: kindLabel.toLowerCase(),
+              name: displayTraits.find((item) => item.id === trait.id)?.name ?? trait.name,
+            })}
             onClick={() => onChange(traits.filter((item) => item.id !== trait.id))}
           >
             <Trash2 size={17} aria-hidden="true" />
@@ -83,11 +96,16 @@ function TraitEditor({
         onClick={() =>
           onChange([
             ...traits,
-            { id: crypto.randomUUID(), name: `New ${kind.toLowerCase()}`, description: '' },
+            {
+              id: crypto.randomUUID(),
+              name: t(isBuff ? 'classes.newBuff' : 'classes.newDebuff'),
+              description: '',
+            },
           ])
         }
       >
-        <Plus size={16} aria-hidden="true" /> Add {kind.toLowerCase()}
+        <Plus size={16} aria-hidden="true" />{' '}
+        {t('classes.addTrait', { kind: kindLabel.toLowerCase() })}
       </button>
     </fieldset>
   );
@@ -96,43 +114,50 @@ function TraitEditor({
 function DefinitionEditor({
   kind,
   value,
+  displayValue,
   onChange,
 }: {
   kind: 'Class' | 'Subclass';
   value: CharacterSubclass;
+  displayValue: CharacterSubclass;
   onChange: (value: CharacterSubclass) => void;
 }) {
+  const t = useTranslations();
+  const kindLabel = t(kind === 'Class' ? 'classes.class' : 'classes.subclass');
   return (
     <div className="definition-editor">
       <label>
-        {kind} name
+        {t('classes.definitionName', { kind: kindLabel })}
         <input
-          aria-label={`${kind} name`}
+          aria-label={t('classes.definitionName', { kind: kindLabel })}
           required
           maxLength={60}
-          value={value.name}
+          value={displayValue.name}
           onChange={(event) => onChange({ ...value, name: event.target.value })}
         />
       </label>
       <label>
-        {kind} description
+        {t('classes.definitionDescription', { kind: kindLabel })}
         <textarea
-          aria-label={`${kind} description`}
+          aria-label={t('classes.definitionDescription', { kind: kindLabel })}
           maxLength={240}
           rows={2}
-          value={value.description}
+          value={displayValue.description}
           onChange={(event) => onChange({ ...value, description: event.target.value })}
         />
       </label>
       <fieldset className="modifier-editor">
-        <legend>{kind} modifiers</legend>
-        <p className="subtle">Added to your character’s d20 checks. Each modifier: -100 to +100.</p>
+        <legend>{t('classes.definitionModifiers', { kind: kindLabel })}</legend>
+        <p className="subtle">{t('classes.modifierHint')}</p>
         <div className="modifier-fields">
-          {attributeDefinitions.map(({ id, name }) => (
+          {attributeDefinitions.map(({ id }) => (
             <label key={id}>
-              {name}
+              {t(`classes.attributes.${id}.name`)}
               <input
-                aria-label={`${kind} ${name}`}
+                aria-label={t('classes.attributeField', {
+                  kind: kindLabel,
+                  attribute: t(`classes.attributes.${id}.name`),
+                })}
                 type="number"
                 required
                 min={-100}
@@ -151,9 +176,9 @@ function DefinitionEditor({
         </div>
       </fieldset>
       <label>
-        {kind} health modifier
+        {t('classes.definitionHealth', { kind: kindLabel })}
         <input
-          aria-label={`${kind} health modifier`}
+          aria-label={t('classes.definitionHealth', { kind: kindLabel })}
           type="number"
           required
           min={-100}
@@ -163,15 +188,17 @@ function DefinitionEditor({
           onChange={(event) => onChange({ ...value, healthModifier: event.target.valueAsNumber })}
         />
       </label>
-      <p className="subtle">Adds to base 20 HP and specialization HP. Use -100 to +100.</p>
+      <p className="subtle">{t('classes.healthModifierHint')}</p>
       <TraitEditor
         kind="Buff"
         traits={value.buffs}
+        displayTraits={displayValue.buffs}
         onChange={(buffs) => onChange({ ...value, buffs })}
       />
       <TraitEditor
         kind="Debuff"
         traits={value.debuffs}
+        displayTraits={displayValue.debuffs}
         onChange={(debuffs) => onChange({ ...value, debuffs })}
       />
     </div>
@@ -191,7 +218,10 @@ export function ClassManager({
   onSave: (classes: CharacterClass[]) => Promise<boolean>;
   onClose: () => void;
 }) {
+  const t = useTranslations();
+  const formatError = useErrorMessage();
   const [draft, setDraft] = useState(() => structuredClone(classes));
+  const displayCatalog = useClassCatalog(draft);
   const [classId, setClassId] = useState(classes[0]?.id);
   const [subclassId, setSubclassId] = useState<string>();
   const [saving, setSaving] = useState(false);
@@ -199,6 +229,8 @@ export function ClassManager({
   const [localError, setLocalError] = useState('');
   const characterClass = draft.find((item) => item.id === classId);
   const subclass = characterClass?.subclasses.find((item) => item.id === subclassId);
+  const displayClass = displayCatalog.find((item) => item.id === classId);
+  const displaySubclass = displayClass?.subclasses.find((item) => item.id === subclassId);
   const disabled = busy || saving;
   function updateClass(value: CharacterClass) {
     setDraft((previous) => previous.map((item) => (item.id === value.id ? value : item)));
@@ -226,19 +258,16 @@ export function ClassManager({
     }
   }
   return (
-    <Modal title="Manage classes" onClose={onClose}>
+    <Modal title={t('tabletop.manageClasses')} onClose={onClose}>
       <form className="class-manager" onSubmit={submit}>
-        <p className="modal-description">
-          Shape the classes for this table. Subclass modifiers add to class modifiers; buffs and
-          debuffs describe narrative traits.
-        </p>
+        <p className="modal-description">{t('classes.managerDescription')}</p>
         <fieldset disabled={disabled} className="class-manager-fields">
           <div className="class-manager-actions">
             {draft.length > 0 && (
               <label>
-                Edit class
+                {t('classes.editClass')}{' '}
                 <FormSelect
-                  label="Edit class"
+                  label={t('classes.editClass')}
                   value={classId}
                   disabled={disabled}
                   onValueChange={(id) => {
@@ -247,9 +276,9 @@ export function ClassManager({
                       setSubclassId(undefined);
                     }
                   }}
-                  options={draft.map((item) => ({
+                  options={displayCatalog.map((item) => ({
                     value: item.id,
-                    label: item.name || 'Unnamed class',
+                    label: item.name || t('classes.unnamedClass'),
                   }))}
                 />
               </label>
@@ -259,23 +288,24 @@ export function ClassManager({
               className="button secondary"
               disabled={disabled || draft.length >= 16}
               onClick={() => {
-                const value = { ...newDefinition(), subclasses: [] };
+                const value = { ...newDefinition(t('classes.newClass')), subclasses: [] };
                 setDraft([...draft, value]);
                 setClassId(value.id);
                 setSubclassId(undefined);
               }}
             >
-              <Plus size={16} aria-hidden="true" /> Add class
+              <Plus size={16} aria-hidden="true" /> {t('classes.addClass')}
             </button>
           </div>
           {!characterClass ? (
-            <p className="subtle">No classes yet.</p>
+            <p className="subtle">{t('classes.noClassesYet')}</p>
           ) : (
             <>
               <DefinitionEditor
                 key={characterClass.id}
                 kind="Class"
                 value={characterClass}
+                displayValue={displayClass ?? characterClass}
                 onChange={(value) =>
                   updateClass({ ...value, subclasses: characterClass.subclasses })
                 }
@@ -290,16 +320,16 @@ export function ClassManager({
                   setSubclassId(undefined);
                 }}
               >
-                <Trash2 size={16} aria-hidden="true" /> Delete class
+                <Trash2 size={16} aria-hidden="true" /> {t('classes.deleteClass')}
               </button>
-              <section className="subclass-editor" aria-label="Subclasses">
-                <h3>Subclasses</h3>
+              <section className="subclass-editor" aria-label={t('classes.subclasses')}>
+                <h3>{t('classes.subclasses')}</h3>
                 <div className="class-manager-actions">
                   {characterClass.subclasses.length > 0 && (
                     <label>
-                      Edit subclass
+                      {t('classes.editSubclass')}{' '}
                       <FormSelect
-                        label="Edit subclass"
+                        label={t('classes.editSubclass')}
                         value={subclassId ?? '__none'}
                         disabled={disabled}
                         onValueChange={(id) => {
@@ -310,10 +340,10 @@ export function ClassManager({
                             setSubclassId(id === '__none' ? undefined : id);
                         }}
                         options={[
-                          { value: '__none', label: 'Choose a subclass' },
-                          ...characterClass.subclasses.map((item) => ({
+                          { value: '__none', label: t('classes.chooseSubclass') },
+                          ...(displayClass ?? characterClass).subclasses.map((item) => ({
                             value: item.id,
-                            label: item.name || 'Unnamed subclass',
+                            label: item.name || t('classes.unnamedSubclass'),
                           })),
                         ]}
                       />
@@ -324,7 +354,7 @@ export function ClassManager({
                     className="button secondary"
                     disabled={disabled || characterClass.subclasses.length >= 8}
                     onClick={() => {
-                      const value = { ...newDefinition(), name: 'New subclass' };
+                      const value = newDefinition(t('classes.newSubclass'));
                       updateClass({
                         ...characterClass,
                         subclasses: [...characterClass.subclasses, value],
@@ -332,7 +362,7 @@ export function ClassManager({
                       setSubclassId(value.id);
                     }}
                   >
-                    <Plus size={16} aria-hidden="true" /> Add subclass
+                    <Plus size={16} aria-hidden="true" /> {t('classes.addSubclass')}
                   </button>
                 </div>
                 {subclass && (
@@ -341,6 +371,7 @@ export function ClassManager({
                       key={subclass.id}
                       kind="Subclass"
                       value={subclass}
+                      displayValue={displaySubclass ?? subclass}
                       onChange={(value) =>
                         updateClass({
                           ...characterClass,
@@ -363,7 +394,7 @@ export function ClassManager({
                         setSubclassId(undefined);
                       }}
                     >
-                      <Trash2 size={16} aria-hidden="true" /> Delete subclass
+                      <Trash2 size={16} aria-hidden="true" /> {t('classes.deleteSubclass')}
                     </button>
                   </>
                 )}
@@ -373,20 +404,17 @@ export function ClassManager({
         </fieldset>
         {(localError || error) && (
           <p role="alert" className="form-error">
-            {localError || error}
+            {formatError(localError || error)}
           </p>
         )}
-        <p className="subtle">
-          Changes apply when saved. Removing a class or subclass clears that selection from affected
-          characters.
-        </p>
+        <p className="subtle">{t('classes.saveHint')}</p>
         <div className="modal-actions">
           <button className="button secondary" type="button" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button className="button primary" type="submit" disabled={disabled}>
             {saving && <LoaderCircle size={16} className="spin" aria-hidden="true" />}
-            {saving ? 'Saving…' : 'Save classes'}
+            {saving ? t('common.saving') : t('classes.saveClasses')}
           </button>
         </div>
       </form>

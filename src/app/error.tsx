@@ -1,14 +1,17 @@
 'use client';
+
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 export default function ErrorPage({ reset }: { reset: () => void }) {
+  const t = useTranslations();
   return (
     <main className="error-page">
-      <h1>The trail hit a snag.</h1>
-      <p>Try loading the table again. Your saved map is still on the server.</p>
+      <h1>{t('errors.errorTitle')}</h1>
+      <p>{t('errors.errorDescription')}</p>
       <button className="button primary" onClick={reset}>
-        Try again
+        {t('common.tryAgain')}
       </button>
-      <Link href="/">Back to the tavern</Link>
+      <Link href="/">{t('common.backToTavern')}</Link>
     </main>
   );
 }

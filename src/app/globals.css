@@ -24,6 +24,7 @@
   max-width: 920px;
   margin: 0 auto 24px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
@@ -1811,6 +1812,23 @@ a {
     padding-top: 80px;
   }
 }
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.language-switcher .select-trigger {
+  min-height: 44px;
+  width: 122px;
+  font-size: 13px;
+}
+.room-nav-right .button svg {
+  flex-shrink: 0;
+}
+.scene-sidebar > .language-switcher {
+  display: none;
+}
 @media (max-width: 1000px) {
   .hub {
     padding: 0 35px;
@@ -1851,6 +1869,17 @@ a {
   }
 }
 @media (max-width: 760px) {
+  .hub-nav .free-badge,
+  .room-nav-right > .language-switcher {
+    display: none;
+  }
+  .scene-sidebar > .language-switcher {
+    display: flex;
+    padding: 0 18px 12px;
+  }
+  .language-switcher {
+    gap: 5px;
+  }
   .hub {
     padding: 0 23px;
   }
@@ -2093,6 +2122,13 @@ a {
   }
 }
 @media (max-width: 380px) {
+  .room-nav .invite-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .room-nav .invite-button span {
+    display: none;
+  }
   .room-nav .brand-mark,
   .room-nav .self-avatar {
     display: none;

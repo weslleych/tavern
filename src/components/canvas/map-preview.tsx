@@ -1,10 +1,12 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef } from 'react';
 import { woodland } from '../../lib/terrain';
 import { drawTile } from './render';
 
 export function MapPreview() {
+  const t = useTranslations();
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current;
@@ -33,7 +35,7 @@ export function MapPreview() {
       width={832}
       height={576}
       className="map-preview"
-      aria-label="An original pixel-art woodland map with a river, trail, and campsite"
+      aria-label={t('hub.previewAlt')}
       role="img"
     />
   );
