@@ -185,6 +185,16 @@ export function attachGateway(server: HttpServer, game: GameService) {
         }),
     );
     socket.on(
+      'room:classes',
+      (request, ack) =>
+        void run(ack, async () => {
+          await game.updateClasses(member, request);
+          await snapshots(member.roomId);
+          await presence(member.roomId);
+          return null;
+        }),
+    );
+    socket.on(
       'panel:spawn',
       (request, ack) =>
         void run(ack, async () => {

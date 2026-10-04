@@ -44,7 +44,7 @@ export function createApi(game: GameService) {
       let body = '';
       for await (const chunk of req) {
         body += chunk.toString();
-        if (Buffer.byteLength(body) > 8192) {
+        if (Buffer.byteLength(body) > 32 * 1024) {
           respond(413, { ok: false, error: 'The request is too large.' });
           return true;
         }

@@ -27,6 +27,8 @@ Open [localhost:3000](http://localhost:3000). No database setup is needed: maps 
 - Persist with MongoDB or local storage; export/import scenes as versioned JSON.
 - Use responsive layouts, native dialogs, shadcn/Radix selects, visible focus, and reduced-motion support.
 - As a player, create a modular pixel character per table, then edit your appearance from your portrait. The GM coordinates without a character.
+- Configure room classes and subclasses as GM during creation or live play; players choose their class alongside their appearance and see summed attributes and descriptive buffs/debuffs.
+- Roll one-click attribute checks with server-calculated class/subclass bonuses and labeled results in the shared party log.
 - As GM, allow/pause player movement, reposition selected players, and mark a preferred spawn per scene.
 - Spawn near the preferred point (first free tile when unset) and move with WASD, arrows, adjacent clicks, token drops, or touch controls; the server enforces collisions.
 - Roll shared dice using RPG notation or six quick-roll buttons, with a saved 20-roll sidebar, author badges, individual faces, and a short retro animation. On mobile, open the dice drawer from the toolbar.

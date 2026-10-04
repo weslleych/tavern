@@ -18,6 +18,9 @@ import {
   WandSparkles,
 } from 'lucide-react';
 import { FormSelect } from './ui/select';
+import { ClassManager } from './class-manager';
+import { ClassSummary } from './class-summary';
+import { defaultClasses } from '../lib/classes';
 import { Brand } from './ui/brand';
 import { MapPreview } from './canvas/map-preview';
 import { rememberTable, savedTables, sessionFor, type SavedTable } from '../lib/sessions';
@@ -30,6 +33,10 @@ export function Hub() {
   const [error, setError] = useState('');
   const [recent, setRecent] = useState<SavedTable[]>([]);
   const [code, setCode] = useState('');
+  const [classes, setClasses] = useState(() => structuredClone(defaultClasses));
+  const [classManagerOpen, setClassManagerOpen] = useState(false);
+  const [previewClassId, setPreviewClassId] = useState(defaultClasses[0].id);
+  const previewClass = classes.find((item) => item.id === previewClassId) ?? classes[0];
   useEffect(() => {
     Promise.resolve().then(() => {
       setRecent(savedTables());
@@ -56,6 +63,7 @@ export function Hub() {
           nickname: form.get('nickname'),
           code: form.get('code'),
           template: form.get('template'),
+          classes: mode === 'create' ? classes : undefined,
           session: mode === 'join' ? sessionFor(String(form.get('code') || '').trim()) : undefined,
         }),
       });
@@ -238,6 +246,37 @@ export function Hub() {
                       ]}
                     />
                   </label>
+                  <section className="starting-classes" aria-label="Starting classes">
+                    <div className="starting-classes-heading">
+                      <strong>Starting classes</strong>
+                      <button
+                        className="button secondary"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setClassManagerOpen(true)}
+                      >
+                        Configure classes
+                      </button>
+                    </div>
+                    <p className="subtle">
+                      {classes.length
+                        ? classes.map((item) => item.name).join(' · ')
+                        : 'No classes configured.'}
+                    </p>
+                    {previewClass && (
+                      <details>
+                        <summary>Preview attributes and traits</summary>
+                        <FormSelect
+                          label="Preview class"
+                          value={previewClass.id}
+                          disabled={busy}
+                          onValueChange={setPreviewClassId}
+                          options={classes.map((item) => ({ value: item.id, label: item.name }))}
+                        />
+                        <ClassSummary characterClass={previewClass} />
+                      </details>
+                    )}
+                  </section>
                 </>
               ) : (
                 <label>
@@ -334,6 +373,17 @@ export function Hub() {
         <p>For the stories you’ll tell together.</p>
         <span>Built for play. Open to everyone.</span>
       </footer>
+      {classManagerOpen && (
+        <ClassManager
+          classes={classes}
+          busy={busy}
+          onClose={() => setClassManagerOpen(false)}
+          onSave={async (value) => {
+            setClasses(value);
+            return true;
+          }}
+        />
+      )}
     </div>
   );
 }

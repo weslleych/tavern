@@ -14,6 +14,7 @@ import type {
   SpawnRequest,
   DiceRequest,
   FogRequest,
+  CharacterClass,
 } from '../types/game';
 
 export function useRoom(code: string) {
@@ -190,6 +191,8 @@ export function useRoom(code: string) {
     rollAnimations,
     paint,
     clearError: () => setError(''),
+    updateClasses: (classes: CharacterClass[]) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('room:classes', { classes })),
     changePanel: (id: string) =>
       perform((connection) => connection.timeout(10000).emitWithAck('panel:change', id)),
     createPanel: (request: SceneRequest) =>

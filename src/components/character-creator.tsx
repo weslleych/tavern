@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { LoaderCircle } from 'lucide-react';
-import type { CharacterAppearance } from '../types/game';
+import type { CharacterAppearance, CharacterClass } from '../types/game';
+import { ClassSummary } from './class-summary';
 import {
   defaultAppearance,
   skinColors,
@@ -60,6 +61,7 @@ const dyeNames = [
 ];
 export function CharacterCreator({
   initial,
+  classes,
   nickname,
   busy,
   error,
@@ -67,6 +69,7 @@ export function CharacterCreator({
   onSave,
 }: {
   initial?: CharacterAppearance;
+  classes: CharacterClass[];
   nickname: string;
   busy: boolean;
   error: string;
@@ -75,13 +78,22 @@ export function CharacterCreator({
 }) {
   const [appearance, setAppearance] = useState(initial || defaultAppearance);
   const [saving, setSaving] = useState(false);
+  const characterClass = classes.find((item) => item.id === appearance.classId);
+  const subclass = characterClass?.subclasses.find((item) => item.id === appearance.subclassId);
   const change = <K extends keyof CharacterAppearance>(key: K, value: CharacterAppearance[K]) =>
     setAppearance((previous) => ({ ...previous, [key]: value }));
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
     try {
-      await onSave(appearance);
+      const look = { ...appearance };
+      delete look.classId;
+      delete look.subclassId;
+      await onSave({
+        ...look,
+        ...(characterClass ? { classId: characterClass.id } : {}),
+        ...(subclass ? { subclassId: subclass.id } : {}),
+      });
     } finally {
       setSaving(false);
     }
@@ -164,6 +176,59 @@ export function CharacterCreator({
           />
         </label>
       </div>
+      <div className="character-class-fields">
+        {classes.length > 0 ? (
+          <>
+            <label>
+              Class
+              <FormSelect
+                label="Class"
+                value={characterClass?.id ?? '__none'}
+                disabled={busy || saving}
+                options={[
+                  { value: '__none', label: 'No class' },
+                  ...classes.map((item) => ({ value: item.id, label: item.name })),
+                ]}
+                onValueChange={(value) =>
+                  setAppearance((previous) => {
+                    const look = { ...previous };
+                    delete look.classId;
+                    delete look.subclassId;
+                    return { ...look, ...(value === '__none' ? {} : { classId: value }) };
+                  })
+                }
+              />
+            </label>
+            {characterClass && (
+              <label>
+                Subclass
+                <FormSelect
+                  label="Subclass"
+                  value={subclass?.id ?? '__none'}
+                  disabled={busy || saving}
+                  options={[
+                    { value: '__none', label: 'No subclass' },
+                    ...characterClass.subclasses.map((item) => ({
+                      value: item.id,
+                      label: item.name,
+                    })),
+                  ]}
+                  onValueChange={(value) =>
+                    setAppearance((previous) => {
+                      const look = { ...previous };
+                      delete look.subclassId;
+                      return { ...look, ...(value === '__none' ? {} : { subclassId: value }) };
+                    })
+                  }
+                />
+              </label>
+            )}
+          </>
+        ) : (
+          <p className="subtle">No classes available. Your game master can add them.</p>
+        )}
+      </div>
+      <ClassSummary characterClass={characterClass} subclass={subclass} />
       {error && (
         <p role="alert" className="form-error">
           {error}

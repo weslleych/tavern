@@ -2,6 +2,63 @@ import { z } from 'zod';
 import { terrains } from '../types/game';
 import { skinColors, dyeColors, pantsColors } from './characters';
 
+const classIdSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[a-zA-Z0-9_-]+$/);
+export const attributeIdSchema = z.enum([
+  'forca',
+  'destreza',
+  'constituicao',
+  'inteligencia',
+  'sabedoria',
+  'carisma',
+]);
+const modifierSchema = z.number().int().min(-100).max(100);
+export const attributesSchema = z
+  .object({
+    forca: modifierSchema,
+    destreza: modifierSchema,
+    constituicao: modifierSchema,
+    inteligencia: modifierSchema,
+    sabedoria: modifierSchema,
+    carisma: modifierSchema,
+  })
+  .strict();
+export const traitSchema = z
+  .object({
+    id: classIdSchema,
+    name: z.string().trim().min(1).max(60),
+    description: z.string().trim().max(240),
+  })
+  .strict();
+const uniqueIds = (items: { id: string }[]) =>
+  new Set(items.map((item) => item.id)).size === items.length;
+const traitsSchema = z.array(traitSchema).max(8).refine(uniqueIds, 'Trait IDs must be unique.');
+export const subclassSchema = z
+  .object({
+    id: classIdSchema,
+    name: z.string().trim().min(1).max(60),
+    description: z.string().trim().max(240),
+    attributes: attributesSchema,
+    buffs: traitsSchema,
+    debuffs: traitsSchema,
+  })
+  .strict();
+export const classSchema = subclassSchema.extend({
+  subclasses: z.array(subclassSchema).max(8).refine(uniqueIds, 'Subclass IDs must be unique.'),
+});
+export const classesSchema = z
+  .array(classSchema)
+  .max(16)
+  .refine(uniqueIds, 'Class IDs must be unique.')
+  .refine(
+    (items) => new TextEncoder().encode(JSON.stringify(items)).length <= 24 * 1024,
+    'The class catalog must fit within 24 KB.',
+  );
+export const updateClassesSchema = z.object({ classes: classesSchema }).strict();
+
 export const spriteSchema = z
   .string()
   .max(8192)
@@ -44,8 +101,11 @@ export const characterSchema = z
     shirtStyle: z.number().int().min(0).max(7),
     shirtColor: z.enum(dyeColors),
     pantsColor: z.enum(pantsColors),
+    classId: classIdSchema.optional(),
+    subclassId: classIdSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => !value.subclassId || !!value.classId, 'Choose a class before its subclass.');
 export const moveSchema = z
   .object({
     panelId: z.string().uuid(),
@@ -93,6 +153,8 @@ export const diceSchema = z
     ]),
     count: z.number().int().min(1).max(20),
     modifier: z.number().int().min(-1000).max(1000),
+    attribute: attributeIdSchema.optional(),
+    label: z.string().trim().min(1).max(80).optional(),
   })
   .strict();
 export const panelIdSchema = z.string().uuid();
@@ -113,6 +175,7 @@ export const createSchema = z.object({
   name,
   nickname,
   template: z.enum(['blank', 'woodland']).default('blank'),
+  classes: classesSchema.optional(),
 });
 export const joinSchema = z.object({
   code: roomCodeSchema,

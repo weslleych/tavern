@@ -12,6 +12,30 @@ export const terrains = [
 ] as const;
 export type Terrain = (typeof terrains)[number];
 export type Role = 'gm' | 'player';
+export type AttributeId =
+  'forca' | 'destreza' | 'constituicao' | 'inteligencia' | 'sabedoria' | 'carisma';
+export type AttributeModifiers = Record<AttributeId, number>;
+export interface AttributeDefinition {
+  id: AttributeId;
+  name: string;
+  abbreviation: string;
+}
+export interface CharacterTrait {
+  id: string;
+  name: string;
+  description: string;
+}
+export interface CharacterSubclass {
+  id: string;
+  name: string;
+  description: string;
+  attributes: AttributeModifiers;
+  buffs: CharacterTrait[];
+  debuffs: CharacterTrait[];
+}
+export interface CharacterClass extends CharacterSubclass {
+  subclasses: CharacterSubclass[];
+}
 export interface Tile {
   x: number;
   y: number;
@@ -26,6 +50,8 @@ export interface CharacterAppearance {
   shirtStyle: number;
   shirtColor: string;
   pantsColor: string;
+  classId?: string;
+  subclassId?: string;
 }
 export interface PlayerToken {
   x: number;
@@ -53,6 +79,8 @@ export interface DiceRequest {
   sides: number;
   count: number;
   modifier: number;
+  attribute?: AttributeId;
+  label?: string;
 }
 export interface DiceRoll extends DiceRequest {
   id: string;
@@ -86,6 +114,7 @@ export interface Room {
   name: string;
   activePanelId: string;
   gmId: string;
+  classes: CharacterClass[];
   rolls?: DiceRoll[];
   playersCanMove?: boolean;
   createdAt: string;
@@ -141,6 +170,7 @@ export interface ClientEvents {
   'character:update': (request: CharacterAppearance, ack: Ack<CharacterAppearance>) => void;
   'token:move': (request: MoveRequest, ack: Ack<PlayerToken>) => void;
   'room:movement': (request: { allowed: boolean }, ack: Ack<null>) => void;
+  'room:classes': (request: { classes: CharacterClass[] }, ack: Ack<null>) => void;
   'panel:spawn': (request: SpawnRequest, ack: Ack<null>) => void;
   'dice:roll': (request: DiceRequest, ack: Ack<DiceRoll>) => void;
   'fog:update': (request: FogRequest, ack: Ack<null>) => void;

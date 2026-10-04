@@ -16,7 +16,14 @@ import {
   panelOrderSchema,
   movementSchema,
   spawnSchema,
+  updateClassesSchema,
 } from '../lib/validation';
+import {
+  defaultClasses,
+  findClassSelection,
+  calculateAttributes,
+  attributeDefinitions,
+} from '../lib/classes';
 import { cellKey, firstFreeTile, walkable } from '../lib/characters';
 import { woodland } from '../lib/terrain';
 import type { GameStore, Session, StoredGame } from './store';
@@ -34,6 +41,7 @@ export class GameService {
   private queue: Promise<unknown> = Promise.resolve();
   constructor(public readonly store: GameStore) {
     this.data = store.load().then((state) => {
+      for (const room of state.rooms) room.classes ??= structuredClone(defaultClasses);
       for (const member of state.sessions)
         if (member.role === 'gm') {
           delete member.character;
@@ -86,6 +94,7 @@ export class GameService {
         name: request.name,
         gmId: '',
         activePanelId: '',
+        classes: structuredClone(request.classes ?? defaultClasses),
         createdAt: now(),
         updatedAt: now(),
       };
@@ -163,6 +172,7 @@ export class GameService {
       name: room.name,
       activePanelId: room.activePanelId,
       playersCanMove: room.playersCanMove ?? true,
+      classes: room.classes,
       createdAt: room.createdAt,
       updatedAt: room.updatedAt,
     };
@@ -266,11 +276,35 @@ export class GameService {
     return this.mutate((state) => {
       const session = this.session(state, member);
       if (session.role !== 'player') throw new Error('Only players have characters.');
-      session.character = character;
       const room = this.roomFor(state, member);
+      if (
+        character.classId &&
+        !findClassSelection(room.classes, character.classId, character.subclassId)
+      )
+        throw new Error('Choose a class and subclass available in this table.');
+      session.character = character;
       this.spawnCharacters(state, room);
       room.updatedAt = now();
       return character;
+    });
+  }
+  async updateClasses(member: Session, input: unknown) {
+    const request = updateClassesSchema.parse(input);
+    await this.mutate((state) => {
+      const room = this.requireGM(member, state);
+      room.classes = request.classes;
+      for (const session of state.sessions) {
+        if (session.roomId !== room.id || !session.character) continue;
+        const character = session.character;
+        const characterClass = room.classes.find((item) => item.id === character.classId);
+        if (!characterClass) {
+          delete character.classId;
+          delete character.subclassId;
+        } else if (!characterClass.subclasses.some((item) => item.id === character.subclassId)) {
+          delete character.subclassId;
+        }
+      }
+      room.updatedAt = now();
     });
   }
   async moveToken(member: Session, input: unknown) {
@@ -367,15 +401,32 @@ export class GameService {
     return this.mutate((state) => {
       const session = this.session(state, member);
       const room = this.roomFor(state, member);
+      const trusted = { ...request };
+      if (request.attribute) {
+        if (session.role !== 'player')
+          throw new Error('Only players with characters can roll attribute checks.');
+        const selection = findClassSelection(
+          room.classes,
+          session.character?.classId,
+          session.character?.subclassId,
+        );
+        if (!selection) throw new Error('Choose a class before rolling an attribute check.');
+        if (request.sides !== 20 || request.count !== 1)
+          throw new Error('Attribute checks use one d20.');
+        trusted.modifier = calculateAttributes(selection.characterClass, selection.subclass)[
+          request.attribute
+        ];
+        trusted.label = `Teste de ${attributeDefinitions.find((item) => item.id === request.attribute)!.name}`;
+      }
       const values = Array.from({ length: request.count }, () => randomInt(1, request.sides + 1));
       const roll = {
-        ...request,
+        ...trusted,
         id: randomUUID(),
         memberId: session.id,
         nickname: session.nickname,
         role: session.role,
         values,
-        total: values.reduce((a, b) => a + b, request.modifier),
+        total: values.reduce((a, b) => a + b, trusted.modifier),
         createdAt: now(),
       };
       room.rolls = [...(room.rolls || []), roll].slice(-20);

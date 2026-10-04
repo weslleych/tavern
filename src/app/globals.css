@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '../components/classes.css';
 @import '../components/dice-sidebar.css';
 
 @theme inline {

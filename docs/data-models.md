@@ -2,15 +2,15 @@
 
 Canonical definitions: [game types](../src/types/game.ts), [store contracts](../src/server/store.ts), and [Zod validation](../src/lib/validation.ts).
 
-Application IDs are UUID strings; timestamps are ISO 8601 strings. MongoDB's additional `_id` is excluded when loading domain objects.
+Room, panel, session, and roll IDs are UUID strings; class/subclass/trait IDs are bounded slugs. Timestamps are ISO 8601 strings. MongoDB's additional `_id` is excluded when loading domain objects.
 
 ## Records
 
-| Record / collection    | Fields                                                                                                                      |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `Room` / `rooms`       | `id`, unique `code`, `name`, `gmId`, `activePanelId`, optional `rolls`, optional `playersCanMove`, `createdAt`, `updatedAt` |
-| `Panel` / `panels`     | `id`, `roomId`, `name`, `order`, `grid`, sparse `tiles`, optional `fog`, optional `spawnPoint`, `updatedAt`                 |
-| `Session` / `sessions` | `id`, `roomId`, `nickname`, `role`, `tokenHash`, optional `character`, optional `token`                                     |
+| Record / collection    | Fields                                                                                                                                 |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `Room` / `rooms`       | `id`, unique `code`, `name`, `gmId`, `activePanelId`, `classes`, optional `rolls`, optional `playersCanMove`, `createdAt`, `updatedAt` |
+| `Panel` / `panels`     | `id`, `roomId`, `name`, `order`, `grid`, sparse `tiles`, optional `fog`, optional `spawnPoint`, `updatedAt`                            |
+| `Session` / `sessions` | `id`, `roomId`, `nickname`, `role`, `tokenHash`, optional `character`, optional `token`                                                |
 
 Rooms own many panels/sessions. `gmId` identifies the creator's session. `activePanelId` selects the whole party's scene. Membership persists; online presence comes from live sockets. Player sessions persist character appearance and map token positions per room. The GM has neither; old GM character/token fields are removed on load. `Room.playersCanMove` defaults to true when absent. `Panel.spawnPoint` is an optional in-bounds `{ x, y }` preference controlled by the GM.
 
@@ -52,6 +52,8 @@ type CharacterAppearance = {
   shirtStyle: number; // Style index (0..7)
   shirtColor: string; // Hex code
   pantsColor: string; // Hex code
+  classId?: string; // Room catalog class ID
+  subclassId?: string; // ID within the selected class
 };
 
 type PlayerToken = {
@@ -71,11 +73,21 @@ type Member = {
 
 Tokens spawn on the non-empty, unblocked, unoccupied tile nearest `Panel.spawnPoint` by Manhattan distance, with row-major ties. Without a preference, choose the first valid tile in row-major order. If none exists, the saved character has no token until terrain is available. All saved player sessions reserve positions, including offline ones. Scene activation respawns characters; appearance edits preserve valid positions. Player requests move exactly one adjacent tile and require room movement permission. The GM may target a room player via `MoveRequest.memberId` and reposition them without adjacency, fog or player-lock restrictions; collisions and occupancy still apply. Ordinary refusals return `code: "MOVE_REJECTED"` for silent handling. See [characters](characters.md).
 
+## Classes, attributes and traits
+
+`Room.classes` is a room-scoped `CharacterClass[]`. Classes have `id`, `name`, `description`, six `attributes`, `buffs`, `debuffs`, and `subclasses`. A subclass has the same fields except `subclasses`; traits have `id`, `name`, and `description`. Attribute IDs are `forca`, `destreza`, `constituicao`, `inteligencia`, `sabedoria`, and `carisma` (STR, DEX, CON, INT, WIS, CHA). All six keys are required, with integer modifiers from -100 to +100. A character's effective modifier is the class value plus the optional subclass value; inherited buff/debuff traits are descriptive and do not alter the numbers.
+
+Catalog limits are 16 classes, 8 subclasses per class, and 8 buffs/debuffs per definition, within 24 KB serialized UTF-8. Names are trimmed, non-empty, and at most 60 characters; descriptions are at most 240. IDs are 1–64 ASCII letters, digits, underscores, or hyphens and unique within each catalog, subclass list, or trait list. HTTP creation accepts optional `classes` within its 32 KB request limit. Without them, rooms get independent copies of the four defaults. Legacy missing catalogs receive defaults on load, persisted with the next mutation; an empty list remains empty.
+
+Character class selection is optional for compatibility and empty catalogs. A subclass requires a class and must belong to it in that room. GM catalog replacement clears deleted selections from all room sessions, including offline players, preserving appearance and tokens. Catalogs and selections persist through the same FileStore/MongoStore room and session records; no separate collection is needed.
+
 ## Visibility and dice
 
 `Panel.fog` is optional `{ enabled: boolean, revealed: string[] }`; missing fog means disabled. Keys use `"x,y"`. GM-only mutations accept at most 64 bounded coordinates. Player snapshots omit hidden tiles/sprites and other hidden token positions; the player's own token is retained. Scene summaries never contain tile or fog arrays.
 
-`Room.rolls` optionally stores the last 20 `DiceRoll` records: `id`, `memberId`, `nickname`, optional `role`, `sides`, `count`, `modifier`, `values`, `total`, and `createdAt`. New rolls record the authenticated session's `gm` or `player` role; legacy snapshots infer it from the author and room creator without exposing `gmId`. Missing history means no rolls. Faces are generated on the server, rather than accepted from the client. Existing records without characters, tokens, fog, history, or roll roles need no migration. The notation UI supports d4/d6/d8/d10/d12/d20; server validation retains d100 compatibility. Counts are 1–20 and modifiers are -1000 to +1000.
+`Room.rolls` optionally stores the last 20 `DiceRoll` records: `id`, `memberId`, `nickname`, optional `role`, `sides`, `count`, `modifier`, optional `attribute` and `label`, `values`, `total`, and `createdAt`. New rolls record the authenticated session's `gm` or `player` role; legacy snapshots infer it from the author and room creator without exposing `gmId`. Missing history means no rolls. Faces are generated on the server, rather than accepted from the client. Existing records without characters, tokens, fog, history, or roll roles need no migration. The notation UI supports d4/d6/d8/d10/d12/d20; server validation retains d100 compatibility. Counts are 1–20 and modifiers are -1000 to +1000.
+
+Attribute checks require a player with a valid class selection, a known attribute ID, and exactly one d20. The server computes `modifier` from the persisted class/subclass and supplies `label` (for example, `Teste de Força`), overriding client-supplied bonuses and labels. Ordinary rolls may include a trimmed 1–80-character label. The resulting values and bonus are retained in history even after the catalog changes.
 
 ## Credentials and shared state
 

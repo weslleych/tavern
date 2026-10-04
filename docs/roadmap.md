@@ -65,6 +65,16 @@ Current validation and implementation decisions: [phase 4 plan](character_system
 
 Detailed technical specifications and architecture: [validated dice system plan](dice_system_plan.md). Validation covers trusted GM/player badges, exact shared results, notation limits, concurrent rolls, the 20-record cap, desktop/mobile controls, focus, reconnect, reduced motion, and history without animation replay. All 31 unit/integration tests and 10 browser tests pass, along with lint, TypeScript, formatting, and production build.
 
+## Phase 5: Classes, attributes & dice integration — implemented
+
+- [x] Room-scoped default classes (Warrior, Mage, Barbarian, Archer) initialized on room creation, with full GM edit/delete/create controls.
+- [x] Core attribute modifiers (STR, DEX, CON, INT, WIS, CHA) and buff/debuff traits per class.
+- [x] Subclasses per class extending and complementing attributes, buffs, and debuffs, editable by the GM.
+- [x] Player character creator & sheet integration: choose class and subclass with dynamic attribute totals and active traits.
+- [x] Attribute-based dice rolls: 1-click test rolls (e.g. 1d20 + modifier) with automatic sum calculation and shared party log attribution.
+
+Detailed specifications and verification: [attribute system plan](attribute_system_plan.md). GM catalog editing works before creation and during play; deleted selections are cleared without losing appearance or token position. Attribute bonuses and labels are derived by the server, and history retains the bonus originally applied. All 48 unit/integration tests and 14 browser tests pass, along with lint, TypeScript, formatting, and production build. Live MongoDB integration remains an optional check requiring `MONGODB_TEST_URI`, which was not configured for this verification.
+
 ## Operational follow-ups
 
 - [ ] GM recovery or role transfer.
@@ -77,4 +87,5 @@ Detailed technical specifications and architecture: [validated dice system plan]
 
 - Complex accounts, passwords, OAuth, email verification.
 - Embedded RPG rules or automated combat/stat/spell mechanics.
+- Equipment, inventory, weapons, and armor systems (deferred to future phases).
 - Built-in voice/video; use your preferred communication app.

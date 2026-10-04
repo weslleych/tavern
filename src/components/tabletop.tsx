@@ -41,6 +41,7 @@ import { Modal } from './ui/modal';
 import { FormSelect } from './ui/select';
 import { CharacterCreator, CharacterPortrait } from './character-creator';
 import { DiceSidebar } from './dice-sidebar';
+import { ClassManager } from './class-manager';
 import { MapCanvas } from './canvas/map-canvas';
 import { drawTile } from './canvas/render';
 import { terrainInfo } from '../lib/terrain';
@@ -70,6 +71,7 @@ export function Tabletop({ code }: { code: string }) {
     null,
   );
   const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
+  const [classManagerOpen, setClassManagerOpen] = useState(false);
   const mobileDice = useMediaQuery('(max-width: 979px)');
   const [desktopDiceOpen, setDesktopDiceOpen] = useState(true);
   const [mobileDiceOpen, setMobileDiceOpen] = useState(false);
@@ -261,6 +263,7 @@ export function Tabletop({ code }: { code: string }) {
           <span className="eyebrow">{snapshot.room.name}</span>
           <h1>Meet your adventurer</h1>
           <CharacterCreator
+            classes={snapshot.room.classes}
             nickname={snapshot.you.nickname}
             busy={status !== 'Connected' || pending > 0}
             error={room.error}
@@ -286,6 +289,17 @@ export function Tabletop({ code }: { code: string }) {
           <span className="room-name">{snapshot.room.name}</span>
         </div>
         <div className="room-nav-right">
+          {isGM && (
+            <button
+              className="button secondary manage-classes-button"
+              disabled={!canEdit}
+              onClick={() => setClassManagerOpen(true)}
+              aria-label="Manage classes"
+            >
+              <Shield size={16} aria-hidden="true" />
+              <span>Classes</span>
+            </button>
+          )}
           <span className={`connection ${status !== 'Connected' ? 'connection-offline' : ''}`}>
             <span className="live-dot" />
             <span data-testid="connection-status">{status}</span>
@@ -832,6 +846,8 @@ export function Tabletop({ code }: { code: string }) {
           </footer>
         </main>
         <DiceSidebar
+          classes={snapshot.room.classes}
+          character={snapshot.you.character}
           rolls={snapshot.rolls}
           rollAnimations={room.rollAnimations}
           open={diceOpen}
@@ -841,6 +857,15 @@ export function Tabletop({ code }: { code: string }) {
           onClose={() => setDiceOpen(false)}
         />
       </div>
+      {classManagerOpen && isGM && (
+        <ClassManager
+          classes={snapshot.room.classes}
+          busy={!canEdit || pending > 0}
+          error={room.error}
+          onSave={room.updateClasses}
+          onClose={() => setClassManagerOpen(false)}
+        />
+      )}
       {notice && (
         <div role="status" className="toast">
           <Check size={17} />
@@ -864,6 +889,7 @@ export function Tabletop({ code }: { code: string }) {
         >
           {dialog === 'character' ? (
             <CharacterCreator
+              classes={snapshot.room.classes}
               initial={snapshot.you.character}
               nickname={snapshot.you.nickname}
               busy={status !== 'Connected' || pending > 0}

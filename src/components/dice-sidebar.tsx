@@ -4,7 +4,13 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Crown, Dices, Sparkles, UserRound, X } from 'lucide-react';
 import { diceSides, formatDiceNotation, parseDiceNotation } from '../lib/dice-notation';
 import { useMediaQuery } from '../lib/use-media-query';
-import type { DiceRequest, DiceRoll } from '../types/game';
+import {
+  attributeDefinitions,
+  calculateAttributes,
+  findClassSelection,
+  signedModifier,
+} from '../lib/classes';
+import type { DiceRequest, DiceRoll, CharacterAppearance, CharacterClass } from '../types/game';
 
 const shapes: Record<number, { outline: string; facets: string }> = {
   4: { outline: 'M24 3 46 43H2Z', facets: 'M24 3 16 32 2 43M16 32 46 43' },
@@ -85,6 +91,12 @@ function RollCard({
       </div>
       <div className="dice-roll-result">
         <div className="dice-roll-details">
+          {roll.label && (
+            <span className="dice-test-label">
+              {roll.label}
+              {roll.attribute ? ` · ${signedModifier(roll.modifier)}` : ''}
+            </span>
+          )}
           <span className="dice-formula">{formatDiceNotation(roll)}</span>
           {rolling ? (
             <span className="dice-rolling-label">Rolling…</span>
@@ -153,6 +165,8 @@ export function DiceSidebar({
   mobile,
   onRoll,
   onClose,
+  classes,
+  character,
 }: {
   rolls: DiceRoll[];
   rollAnimations: Record<string, number>;
@@ -161,7 +175,11 @@ export function DiceSidebar({
   mobile: boolean;
   onRoll: (request: DiceRequest) => Promise<boolean>;
   onClose: () => void;
+  classes?: CharacterClass[];
+  character?: CharacterAppearance;
 }) {
+  const selection = findClassSelection(classes ?? [], character?.classId, character?.subclassId);
+  const attributes = calculateAttributes(selection?.characterClass, selection?.subclass);
   const [expression, setExpression] = useState('d20');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
@@ -224,6 +242,27 @@ export function DiceSidebar({
           <X size={18} aria-hidden="true" />
         </button>
       </header>
+      {selection && (
+        <div className="attribute-checks" role="group" aria-label="Attribute checks">
+          <h3>Attribute checks</h3>
+          <div>
+            {attributeDefinitions.map(({ id, name, abbreviation }) => (
+              <button
+                type="button"
+                key={id}
+                disabled={disabled || pending}
+                aria-label={`Teste de ${name} ${signedModifier(attributes[id])}`}
+                onClick={() =>
+                  void roll({ sides: 20, count: 1, modifier: attributes[id], attribute: id })
+                }
+              >
+                <span>{abbreviation}</span>
+                <strong>{signedModifier(attributes[id])}</strong>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <form className="dice-roller" onSubmit={submit} aria-label="Roll dice">
         <div className="dice-quick-rolls" role="group" aria-label="Quick rolls">
           {diceSides.map((sides) => (

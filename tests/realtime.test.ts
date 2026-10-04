@@ -9,6 +9,8 @@ import { attachGateway } from '../src/server/gateway';
 import { GameService } from '../src/server/game';
 import { FileStore } from '../src/server/store';
 import type { Credential, Snapshot } from '../src/types/game';
+import { defaultClasses } from '../src/lib/classes';
+import { defaultAppearance } from '../src/lib/characters';
 
 async function setup() {
   const directory = await mkdtemp(join(tmpdir(), 'tavern-socket-'));
@@ -48,6 +50,77 @@ function receive<T>(socket: Socket, event: string): Promise<T> {
     });
   });
 }
+
+test('GM class edits synchronize current selections and trusted attribute rolls within one room and on reconnect', async () => {
+  const f = await setup();
+  try {
+    const gm = await f.game.create({ name: 'Classes', nickname: 'GM' });
+    const player = await f.game.join({ code: gm.roomCode, nickname: 'Player' });
+    const other = await f.game.create({ name: 'Other', nickname: 'Other' });
+    const open = async (credential: Credential) => {
+      const socket = f.open(credential);
+      const snapshot = receive<Snapshot>(socket, 'room:snapshot');
+      socket.connect();
+      await snapshot;
+      return socket;
+    };
+    const master = await open(gm),
+      guest = await open(player),
+      outsider = await open(other);
+    let leaked = false;
+    outsider.on('room:snapshot', () => {
+      leaked = true;
+    });
+    outsider.on('dice:rolled', () => {
+      leaked = true;
+    });
+    const denied = await guest.timeout(1000).emitWithAck('room:classes', { classes: [] });
+    assert.equal(denied.ok, false);
+    const character = receive<Snapshot>(guest, 'room:snapshot');
+    assert.equal(
+      (
+        await guest.timeout(2000).emitWithAck('character:update', {
+          ...defaultAppearance,
+          classId: 'guerreiro',
+          subclassId: 'guardiao',
+        })
+      ).ok,
+      true,
+    );
+    await character;
+    const classes = structuredClone(defaultClasses);
+    classes[0].attributes.forca = 5;
+    const update = receive<Snapshot>(guest, 'room:snapshot');
+    assert.equal((await master.timeout(2000).emitWithAck('room:classes', { classes })).ok, true);
+    assert.equal((await update).room.classes[0].attributes.forca, 5);
+    const broadcast = receive<{ modifier: number; label: string; total: number }>(
+      master,
+      'dice:rolled',
+    );
+    const roll = await guest
+      .timeout(2000)
+      .emitWithAck('dice:roll', { sides: 20, count: 1, modifier: 999, attribute: 'forca' });
+    assert.equal(roll.ok, true);
+    assert.equal(roll.data.modifier, 5);
+    assert.deepEqual(await broadcast, roll.data);
+    const cleanup = receive<Snapshot>(guest, 'room:snapshot');
+    assert.equal(
+      (await master.timeout(2000).emitWithAck('room:classes', { classes: [] })).ok,
+      true,
+    );
+    assert.equal((await cleanup).you.character?.classId, undefined);
+    guest.disconnect();
+    const resumed = receive<Snapshot>(guest, 'room:snapshot');
+    guest.connect();
+    const snapshot = await resumed;
+    assert.deepEqual(snapshot.room.classes, []);
+    assert.equal(snapshot.rolls[0].label, 'Teste de Força');
+    assert.equal(snapshot.rolls[0].modifier, 5);
+    assert.equal(leaked, false);
+  } finally {
+    await f.close();
+  }
+});
 
 test('characters, movement and dice synchronize; fog never leaks hidden edits, tokens or sprites to players or another room', async () => {
   const f = await setup();
