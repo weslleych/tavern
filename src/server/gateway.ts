@@ -167,6 +167,17 @@ export function attachGateway(server: HttpServer, game: GameService) {
         }),
     );
     socket.on(
+      'health:update',
+      (request, ack) =>
+        void run(ack, async () => {
+          const update = await game.adjustHealth(member, request);
+          io.to(channel(member.roomId)).emit('health:updated', update);
+          await snapshots(member.roomId);
+          await presence(member.roomId);
+          return update.health;
+        }),
+    );
+    socket.on(
       'dice:roll',
       (request, ack) =>
         void run(ack, async () => {

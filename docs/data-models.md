@@ -10,7 +10,7 @@ Room, panel, session, and roll IDs are UUID strings; class/subclass/trait IDs ar
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `Room` / `rooms`       | `id`, unique `code`, `name`, `gmId`, `activePanelId`, `classes`, optional `rolls`, optional `playersCanMove`, `createdAt`, `updatedAt` |
 | `Panel` / `panels`     | `id`, `roomId`, `name`, `order`, `grid`, sparse `tiles`, optional `fog`, optional `spawnPoint`, `updatedAt`                            |
-| `Session` / `sessions` | `id`, `roomId`, `nickname`, `role`, `tokenHash`, optional `character`, optional `token`                                                |
+| `Session` / `sessions` | `id`, `roomId`, `nickname`, `role`, `tokenHash`, optional `character`, optional `token`, optional `health`                             |
 
 Rooms own many panels/sessions. `gmId` identifies the creator's session. `activePanelId` selects the whole party's scene. Membership persists; online presence comes from live sockets. Player sessions persist character appearance and map token positions per room. The GM has neither; old GM character/token fields are removed on load. `Room.playersCanMove` defaults to true when absent. `Panel.spawnPoint` is an optional in-bounds `{ x, y }` preference controlled by the GM.
 
@@ -68,6 +68,7 @@ type Member = {
   role: 'gm' | 'player';
   character?: CharacterAppearance;
   token?: PlayerToken;
+  health?: CharacterHealth; // Players only; visible to the party
 };
 ```
 
@@ -80,6 +81,31 @@ Tokens spawn on the non-empty, unblocked, unoccupied tile nearest `Panel.spawnPo
 Catalog limits are 16 classes, 8 subclasses per class, and 8 buffs/debuffs per definition, within 24 KB serialized UTF-8. Names are trimmed, non-empty, and at most 60 characters; descriptions are at most 240. IDs are 1–64 ASCII letters, digits, underscores, or hyphens and unique within each catalog, subclass list, or trait list. HTTP creation accepts optional `classes` within its 32 KB request limit. Without them, rooms get independent copies of the four defaults. Legacy missing catalogs receive defaults on load, persisted with the next mutation; an empty list remains empty.
 
 Character class selection is optional for compatibility and empty catalogs. A subclass requires a class and must belong to it in that room. GM catalog replacement clears deleted selections from all room sessions, including offline players, preserving appearance and tokens. Catalogs and selections persist through the same FileStore/MongoStore room and session records; no separate collection is needed.
+
+## Character health
+
+```typescript
+type CharacterHealth = {
+  current: number;
+  max: number;
+  gmBonus?: number;
+};
+
+type HealthAdjustmentRequest = {
+  memberId?: string;
+  current?: number;
+  delta?: number;
+  gmBonus?: number;
+};
+```
+
+Every unconfigured player session starts at 20/20 HP. On the first character save, current HP fills to the effective maximum, including class/subclass modifiers and any GM bonus. A character with maximum 30 HP therefore starts at 30/30, even while waiting for a free map tile. Later character saves preserve current HP and do not heal. Classes and subclasses have an optional integer `healthModifier` from -100 to +100, defaulting to zero when absent. Effective maximum HP is `max(1, 20 + class modifier + subclass modifier + gmBonus)`. New default catalogs use Guerreiro +4 (Guardião +2, Duelista -1), Mago -2 (Arcanista 0), Bárbaro +6 (Berserker +2), and Arqueiro 0 (Rastreador +1). Existing catalogs without modifiers retain their zero modifiers.
+
+The GM has no health. Legacy player sessions missing health initialize at their selected class/subclass maximum; existing health is retained. Legacy GM health is removed. These load-time migrations persist with the next successful mutation. Character and catalog edits recalculate maximum HP for affected players, including offline members, preserve the GM bonus and current HP, and clamp current HP to the new maximum. Increasing the maximum never heals automatically. Deleting classes/subclasses removes their modifiers without removing the character.
+
+Authenticated `health:update` requests accept either absolute `current` (0–999) or signed `delta` (-999–999), optionally combined with `gmBonus` (-100–100). Values must be integers. Empty requests, unknown fields, invalid member UUIDs, and simultaneous `current`/`delta` are rejected. Players may set only their own current HP; changing the GM bonus is denied even when the supplied bonus is zero. The authenticated room GM must supply `memberId` and may adjust any player in that room, including offline players. GM or cross-room targets are rejected. Current HP always clamps to `[0, max]`.
+
+After persistence succeeds, the acknowledgement returns `CharacterHealth`, and the room receives `health:updated` with `{ memberId, health }`, followed by personalized snapshots/presence. Public members and `snapshot.you` include player health; fog continues to redact token positions while HP remains public to the party. Zero HP displays “KO · Unconscious” and does not change movement permissions or automate combat.
 
 ## Visibility and dice
 

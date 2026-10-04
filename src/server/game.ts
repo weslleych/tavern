@@ -17,12 +17,14 @@ import {
   movementSchema,
   spawnSchema,
   updateClassesSchema,
+  healthAdjustmentSchema,
 } from '../lib/validation';
 import {
   defaultClasses,
   findClassSelection,
   calculateAttributes,
   attributeDefinitions,
+  calculateMaxHealth,
 } from '../lib/classes';
 import { cellKey, firstFreeTile, walkable } from '../lib/characters';
 import { woodland } from '../lib/terrain';
@@ -46,6 +48,10 @@ export class GameService {
         if (member.role === 'gm') {
           delete member.character;
           delete member.token;
+          delete member.health;
+        } else if (!member.health) {
+          const room = state.rooms.find((room) => room.id === member.roomId);
+          if (room) this.recalculateHealth(member, room);
         }
       return state;
     });
@@ -74,7 +80,15 @@ export class GameService {
   ): Credential {
     const token = randomBytes(32).toString('hex');
     const memberId = randomUUID();
-    state.sessions.push({ id: memberId, nickname, role, roomId: room.id, tokenHash: hash(token) });
+    const session: Session = {
+      id: memberId,
+      nickname,
+      role,
+      roomId: room.id,
+      tokenHash: hash(token),
+    };
+    if (role === 'player') this.recalculateHealth(session, room);
+    state.sessions.push(session);
     return { roomCode: room.code, memberId, nickname, role, token };
   }
 
@@ -192,6 +206,7 @@ export class GameService {
     const publicMember = (session: Session): Member => {
       const result: Member = { id: session.id, nickname: session.nickname, role: session.role };
       if (session.role === 'player' && session.character) result.character = session.character;
+      if (session.role === 'player' && session.health) result.health = session.health;
       if (
         session.role === 'player' &&
         session.token &&
@@ -271,6 +286,51 @@ export class GameService {
         else delete member.token;
       }
   }
+  private recalculateHealth(session: Session, room: Room) {
+    const selection = findClassSelection(
+      room.classes,
+      session.character?.classId,
+      session.character?.subclassId,
+    );
+    const gmBonus = session.health?.gmBonus ?? 0;
+    const max = calculateMaxHealth(selection?.characterClass, selection?.subclass, gmBonus);
+    session.health = {
+      current: Math.max(0, Math.min(max, session.health?.current ?? max)),
+      max,
+      gmBonus,
+    };
+    return session.health;
+  }
+  async adjustHealth(member: Session, input: unknown) {
+    const request = healthAdjustmentSchema.parse(input);
+    return this.mutate((state) => {
+      const actor = this.session(state, member);
+      const room = this.roomFor(state, actor);
+      if (actor.role === 'gm') {
+        this.requireGM(actor, state);
+        if (!request.memberId) throw new Error('Select a player to adjust health.');
+      } else {
+        if (request.memberId && request.memberId !== actor.id)
+          throw new Error('Adjust only your own health.');
+        if (request.gmBonus !== undefined)
+          throw new Error('Only the game master can change maximum health.');
+      }
+      const target = state.sessions.find(
+        (session) =>
+          session.id === (request.memberId ?? actor.id) &&
+          session.roomId === room.id &&
+          session.role === 'player',
+      );
+      if (!target) throw new Error('Player not found in this table.');
+      const previous = this.recalculateHealth(target, room);
+      const current = request.current ?? previous.current + (request.delta ?? 0);
+      if (request.gmBonus !== undefined) previous.gmBonus = request.gmBonus;
+      const health = this.recalculateHealth(target, room);
+      health.current = Math.max(0, Math.min(health.max, current));
+      room.updatedAt = now();
+      return { memberId: target.id, health };
+    });
+  }
   async updateCharacter(member: Session, input: unknown) {
     const character = characterSchema.parse(input);
     return this.mutate((state) => {
@@ -282,7 +342,10 @@ export class GameService {
         !findClassSelection(room.classes, character.classId, character.subclassId)
       )
         throw new Error('Choose a class and subclass available in this table.');
+      const creatingCharacter = !session.character;
       session.character = character;
+      const health = this.recalculateHealth(session, room);
+      if (creatingCharacter) health.current = health.max;
       this.spawnCharacters(state, room);
       room.updatedAt = now();
       return character;
@@ -303,6 +366,7 @@ export class GameService {
         } else if (!characterClass.subclasses.some((item) => item.id === character.subclassId)) {
           delete character.subclassId;
         }
+        if (session.role === 'player') this.recalculateHealth(session, room);
       }
       room.updatedAt = now();
     });

@@ -29,6 +29,7 @@ Open [localhost:3000](http://localhost:3000). No database setup is needed: maps 
 - As a player, create a modular pixel character per table, then edit your appearance from your portrait. The GM coordinates without a character.
 - Configure room classes and subclasses as GM during creation or live play; players explore archetype cards, choose a specialization, then customize their appearance. Edit either through character tabs and see party class titles, summed attributes, and descriptive buffs/debuffs.
 - Roll one-click attribute checks with server-calculated class/subclass bonuses and labeled results in the shared party log.
+- Track shared character HP with base 20 health, class/specialization modifiers, token bars and party/HUD meters. Players record their own damage/healing; the GM adjusts any player's current HP or maximum bonus. Health persists and synchronizes live, with a KO indicator at zero.
 - As GM, allow/pause player movement, reposition selected players, and mark a preferred spawn per scene.
 - Spawn near the preferred point (first free tile when unset) and move with WASD, arrows, adjacent clicks, token drops, or touch controls; the server enforces collisions.
 - Roll shared dice using RPG notation or six quick-roll buttons, with a saved 20-roll sidebar, author badges, individual faces, and a short retro animation. On mobile, open the dice drawer from the toolbar.

@@ -1,0 +1,113 @@
+.health-status {
+  --health-color: #22c55e;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 80px;
+  max-width: 100%;
+  color: var(--ink);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.health-status[data-health-state='warning'] {
+  --health-color: #f59e0b;
+}
+.health-status[data-health-state='danger'],
+.health-status[data-health-state='unconscious'] {
+  --health-color: #ef4444;
+}
+.health-count {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.health-count svg {
+  color: var(--forest);
+  flex-shrink: 0;
+}
+.health-status[data-health-state='unconscious'] svg {
+  color: #a52d26;
+}
+.health-track {
+  display: block;
+  height: 5px;
+  overflow: hidden;
+  background: #172d2a;
+  border-radius: 2px;
+}
+.health-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--health-color);
+  transform-origin: left;
+  transition: transform 180ms ease;
+}
+.health-ko {
+  font-size: 11px;
+  font-weight: 700;
+  color: #a52d26;
+}
+.health-trigger {
+  display: block;
+  min-height: 44px;
+  max-width: 100%;
+  margin-top: 4px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  text-align: left;
+}
+.health-trigger:hover {
+  background: var(--leaf);
+}
+.health-editor {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+.health-editor > .health-status {
+  width: 100%;
+  font-size: 16px;
+}
+.health-editor > .health-status .health-track {
+  height: 8px;
+}
+.health-editor form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+.health-editor label {
+  flex: 1;
+  min-width: 140px;
+}
+.health-editor .button {
+  min-height: 44px;
+}
+.health-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border: 0;
+  padding: 0;
+}
+.health-editor .modal-actions {
+  margin-top: 0;
+}
+.character-hud .health-trigger {
+  margin: 0;
+  padding: 6px;
+}
+.character-hud .health-step {
+  min-width: 44px;
+  justify-content: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .health-fill {
+    transition: none !important;
+  }
+}

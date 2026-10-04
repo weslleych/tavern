@@ -51,6 +51,75 @@ function receive<T>(socket: Socket, event: string): Promise<T> {
   });
 }
 
+test('confirmed health changes broadcast within the room, reject unauthorized edits and restore on reconnect', async () => {
+  const f = await setup();
+  try {
+    const gm = await f.game.create({ name: 'Health', nickname: 'GM' });
+    const player = await f.game.join({ code: gm.roomCode, nickname: 'Marle' });
+    const other = await f.game.create({ name: 'Other', nickname: 'Other' });
+    const open = async (credential: Credential) => {
+      const socket = f.open(credential);
+      const initial = receive<Snapshot>(socket, 'room:snapshot');
+      socket.connect();
+      await initial;
+      return socket;
+    };
+    const master = await open(gm),
+      guest = await open(player),
+      outsider = await open(other);
+    let leaks = 0,
+      changes = 0;
+    outsider.on('health:updated', () => leaks++);
+    outsider.on('room:snapshot', () => leaks++);
+    outsider.on('room:presence', () => leaks++);
+    guest.on('health:updated', () => changes++);
+    const broadcast = receive(guest, 'health:updated');
+    const selfBroadcast = receive(master, 'health:updated');
+    const confirmed = await master.timeout(1500).emitWithAck('health:update', {
+      memberId: player.memberId,
+      current: 12,
+      gmBonus: 5,
+    });
+    assert.equal(confirmed.ok, true);
+    assert.deepEqual(confirmed.data, { current: 12, max: 25, gmBonus: 5 });
+    assert.deepEqual(await broadcast, { memberId: player.memberId, health: confirmed.data });
+    assert.deepEqual(await selfBroadcast, { memberId: player.memberId, health: confirmed.data });
+    assert.equal(
+      (await guest.timeout(1500).emitWithAck('health:update', { gmBonus: 10 })).ok,
+      false,
+    );
+    assert.equal(
+      (
+        await guest
+          .timeout(1500)
+          .emitWithAck('health:update', { memberId: gm.memberId, current: 1 })
+      ).ok,
+      false,
+    );
+    assert.equal(changes, 1);
+    assert.equal(leaks, 0);
+    const save = f.game.store.save.bind(f.game.store);
+    f.game.store.save = async () => {
+      throw new Error('Disk unavailable');
+    };
+    const failed = await master
+      .timeout(1500)
+      .emitWithAck('health:update', { memberId: player.memberId, current: 0 });
+    assert.equal(failed.ok, false);
+    assert.match(failed.error, /Disk/);
+    assert.equal(changes, 1);
+    f.game.store.save = save;
+    assert.equal((await guest.timeout(1500).emitWithAck('health:update', { delta: -2 })).ok, true);
+    guest.disconnect();
+    const restored = receive<Snapshot>(guest, 'room:snapshot');
+    guest.connect();
+    assert.deepEqual((await restored).you.health, { current: 10, max: 25, gmBonus: 5 });
+    assert.equal(leaks, 0);
+  } finally {
+    await f.close();
+  }
+});
+
 test('GM class edits synchronize current selections and trusted attribute rolls within one room and on reconnect', async () => {
   const f = await setup();
   try {

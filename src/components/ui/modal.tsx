@@ -14,8 +14,14 @@ export function Modal({
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
+    const returnFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialog?.showModal();
-    return () => dialog?.close();
+    return () => {
+      dialog?.close();
+      // React may detach the dialog before effect cleanup, bypassing native focus restoration.
+      if (returnFocus?.isConnected) returnFocus.focus();
+    };
   }, []);
   return (
     <dialog

@@ -30,6 +30,7 @@ The gateway joins sockets to `room:<UUID>` and broadcasts within that room. Pres
 - Joining from a browser with a saved session authenticates and restores that seat. Invalid saved credentials can only create a new player session; an ordinary join can never replace a valid GM seat.
 - The handshake role is untrusted. Persisted membership and the room's `gmId` determine editing rights.
 - All tile and scene mutations validate room ownership and GM permission server-side.
+- Health mutations resolve the actor's persisted session inside the mutation queue. Players adjust their own current HP; only the room GM changes another player's HP or maximum bonus. Targets must be players in the same room. Health clamps to its class/subclass/GM maximum and persists before broadcast; failed writes leave confirmed HP unchanged.
 - Only players customize characters; the GM has no character/token. GameService assigns player spawns near a per-scene preferred point (row-major fallback), and enforces room movement permission, one-step player movement, active scene ownership, collision, occupancy and player fog visibility. The GM can reposition same-room players at any valid free tile, even while paused or behind fog. Legacy GM character/token fields are discarded on load.
 - Fog is GM controlled and filtered server-side. Hidden terrain/sprites and other hidden positions never enter a player's snapshots, presence, or movement broadcasts. Fogged tile edits use personalized snapshots.
 - Shared snapshots omit tokens, hashes, and `gmId`. Invite links contain only the room code.
@@ -46,23 +47,24 @@ No accounts, token expiry, recovery, or GM transfer exist yet. Losing the creato
 
 HTTP writes require JSON, check browser origin when supplied, cap input size at 32 KB, and rate-limit the remote IP. A proxy's IP is shared unless individual client addresses are separately handled. Socket authentication uses `{ roomCode, memberId, token }`.
 
-| Client event       | Payload                                          | Broadcast       |
-| ------------------ | ------------------------------------------------ | --------------- |
-| `tile:paint`       | `{ panelId, tiles }`, at most 64 tiles           | `tile:updated`  |
-| `panel:change`     | Panel UUID                                       | `room:snapshot` |
-| `panel:create`     | `{ name, cols, rows, template }`                 | `room:snapshot` |
-| `panel:rename`     | `{ panelId, name }`                              | `room:snapshot` |
-| `panel:import`     | Version 1 exported map                           | `room:snapshot` |
-| `character:update` | `CharacterAppearance`                            | `room:presence` |
-| `room:movement`    | `{ allowed }`                                    | `room:snapshot` |
-| `room:classes`     | `{ classes }`, validated room catalog            | `room:snapshot` |
-| `panel:spawn`      | `{ panelId, point: { x, y } or null }`           | `room:snapshot` |
-| `token:move`       | `{ x, y, panelId, memberId? }`                   | `token:moved`   |
-| `dice:roll`        | `{ sides, count, modifier, attribute?, label? }` | `dice:rolled`   |
-| `fog:update`       | `{ panelId, enabled? , revealed?, cells? }`      | `room:snapshot` |
-| `panel:duplicate`  | Panel UUID                                       | `room:snapshot` |
-| `panel:remove`     | Panel UUID                                       | `room:snapshot` |
-| `panel:reorder`    | Ordered array of every panel UUID                | `room:snapshot` |
+| Client event       | Payload                                          | Broadcast        |
+| ------------------ | ------------------------------------------------ | ---------------- |
+| `tile:paint`       | `{ panelId, tiles }`, at most 64 tiles           | `tile:updated`   |
+| `panel:change`     | Panel UUID                                       | `room:snapshot`  |
+| `panel:create`     | `{ name, cols, rows, template }`                 | `room:snapshot`  |
+| `panel:rename`     | `{ panelId, name }`                              | `room:snapshot`  |
+| `panel:import`     | Version 1 exported map                           | `room:snapshot`  |
+| `character:update` | `CharacterAppearance`                            | `room:presence`  |
+| `health:update`    | `{ memberId?, current?, delta?, gmBonus? }`      | `health:updated` |
+| `room:movement`    | `{ allowed }`                                    | `room:snapshot`  |
+| `room:classes`     | `{ classes }`, validated room catalog            | `room:snapshot`  |
+| `panel:spawn`      | `{ panelId, point: { x, y } or null }`           | `room:snapshot`  |
+| `token:move`       | `{ x, y, panelId, memberId? }`                   | `token:moved`    |
+| `dice:roll`        | `{ sides, count, modifier, attribute?, label? }` | `dice:rolled`    |
+| `fog:update`       | `{ panelId, enabled? , revealed?, cells? }`      | `room:snapshot`  |
+| `panel:duplicate`  | Panel UUID                                       | `room:snapshot`  |
+| `panel:remove`     | Panel UUID                                       | `room:snapshot`  |
+| `panel:reorder`    | Ordered array of every panel UUID                | `room:snapshot`  |
 
 Acknowledgements use `{ ok: true, data }` or `{ ok: false, error, code? }`. Ordinary movement refusals use `MOVE_REJECTED` and are silent in the UI; authorization, validation, connection and persistence failures remain visible. The gateway limits a socket to 80 actions/second and 512 KB incoming messages. The browser batches paint over 35 ms, sends fog strokes in sequential batches of 64 cells, displays confirmed changes, and reconnects with a fresh snapshot. Editing and movement are disabled when disconnected; queued, unconfirmed paint is cleared. Character changes publish both presence and snapshots. Movement broadcasts are personalized, with hidden positions omitted.
 
@@ -91,6 +93,12 @@ The character summary shows summed modifiers and inherited traits. Players with 
 React, local CSS with Tailwind available, and Lucide provide the interface. No paid generation API or external terrain art is required. Primary interactions include native dialogs, visible focus, keyboard map controls, reduced motion, and a mobile scene drawer.
 
 Typography pairs Pixelify Sans for the brand and display headings with DM Sans for body copy and controls. Variable Latin WOFF2 files (including Portuguese accents) live in `src/app/fonts/`, alongside their SIL Open Font Licenses, and load through `next/font/local`. Both development and production builds work without fetching fonts from an external service. Tailwind's `font-display` and `font-sans` utilities expose the same families used by the local CSS.
+
+Health is part of persisted player sessions and public member state. Unconfigured player sessions start at 20/20 HP. The first character save starts at full effective maximum HP, including class/subclass modifiers and any GM bonus, even when waiting for a free map tile. Later catalog and character changes recalculate HP without healing. Load-time migration initializes legacy player health and removes GM health; the next successful mutation saves these changes. See [health data contracts](data-models.md#character-health) and the [health system plan](health_system_plan.md).
+
+The `health:update` gateway persists the authoritative adjustment, emits room-scoped `health:updated` with `{ memberId, health }`, then refreshes personalized snapshots and presence. The client updates both `snapshot.members` and `snapshot.you`, so sidebar, HUD and token bars render the same confirmed HP. Reconnect restores it from storage. Fog hides positions as before; public health does not expose hidden coordinates.
+
+Player tokens show a 24×3 pixel bar above their nameplate: green above half health, amber from one-quarter through one-half, red below one-quarter, and a KO marker at zero. Party rows and the floating HUD show numeric HP, a proportional meter and a textual unconscious status. The existing native dialog provides quick deltas, damage/healing amounts for players, and exact HP, full healing and maximum bonuses for the GM. It restores focus to the opening control after closing. Controls disable while disconnected or saving; health meters respect reduced motion. The GM's selected-player HUD also offers ±1 HP actions. Class cards and summaries preview base/class/subclass maximum HP, and the class manager edits both modifiers. HP is manual bookkeeping; zero does not pause movement or add combat automation.
 
 ## Persistence boundaries
 

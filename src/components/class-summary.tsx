@@ -3,6 +3,7 @@ import {
   calculateAttributes,
   calculateTraits,
   signedModifier,
+  calculateMaxHealth,
 } from '../lib/classes';
 import type { CharacterClass, CharacterSubclass } from '../types/game';
 
@@ -23,6 +24,11 @@ export function ClassSummary({
       </h3>
       {characterClass?.description && <p>{characterClass.description}</p>}
       {subclass?.description && <p>{subclass.description}</p>}
+      <p className="class-health-summary">
+        <strong>Maximum HP: {calculateMaxHealth(characterClass, subclass)}</strong> · Base 20
+        {characterClass && ` · Class ${signedModifier(characterClass.healthModifier ?? 0)} HP`}
+        {subclass && ` · Specialization ${signedModifier(subclass.healthModifier ?? 0)} HP`}
+      </p>
       <dl className="attribute-grid">
         {attributeDefinitions.map(({ id, name, abbreviation }) => (
           <div key={id}>

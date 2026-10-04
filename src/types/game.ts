@@ -32,6 +32,7 @@ export interface CharacterSubclass {
   attributes: AttributeModifiers;
   buffs: CharacterTrait[];
   debuffs: CharacterTrait[];
+  healthModifier?: number;
 }
 export interface CharacterClass extends CharacterSubclass {
   subclasses: CharacterSubclass[];
@@ -133,6 +134,18 @@ export interface Member {
   role: Role;
   character?: CharacterAppearance;
   token?: PlayerToken;
+  health?: CharacterHealth;
+}
+export interface CharacterHealth {
+  current: number;
+  max: number;
+  gmBonus?: number;
+}
+export interface HealthAdjustmentRequest {
+  memberId?: string;
+  current?: number;
+  delta?: number;
+  gmBonus?: number;
 }
 export interface RoomSummary {
   code: string;
@@ -168,6 +181,7 @@ export interface ClientEvents {
   'panel:rename': (request: { panelId: string; name: string }, ack: Ack<null>) => void;
   'panel:import': (request: unknown, ack: Ack<null>) => void;
   'character:update': (request: CharacterAppearance, ack: Ack<CharacterAppearance>) => void;
+  'health:update': (request: HealthAdjustmentRequest, ack: Ack<CharacterHealth>) => void;
   'token:move': (request: MoveRequest, ack: Ack<PlayerToken>) => void;
   'room:movement': (request: { allowed: boolean }, ack: Ack<null>) => void;
   'room:classes': (request: { classes: CharacterClass[] }, ack: Ack<null>) => void;
@@ -181,6 +195,7 @@ export interface ClientEvents {
 export interface ServerEvents {
   'room:snapshot': (snapshot: Snapshot) => void;
   'room:presence': (members: Member[]) => void;
+  'health:updated': (update: { memberId: string; health: CharacterHealth }) => void;
   'tile:updated': (update: { panelId: string; tiles: Tile[]; updatedAt: string }) => void;
   'token:moved': (update: { memberId: string; token?: PlayerToken }) => void;
   'dice:rolled': (roll: DiceRoll) => void;

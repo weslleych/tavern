@@ -104,6 +104,21 @@ Detailed specifications and implementation plan: [map editor UX plan](map_editor
 
 Phases 6 and 7 were completed in order. Final verification passes all 49 domain/integration tests and 20 browser tests, TypeScript, lint, formatting, and production build. Dedicated regressions cover 64×64 camera persistence, overlay clearance/pass-through, right-drag with no game mutations, scene refitting, and mobile controls/hints.
 
+## Phase 8: Character health (HP) & GM management — implemented
+
+- [x] Shared base health (`DEFAULT_BASE_HP = 20`) for all adventurer characters upon creation.
+- [x] Class and subclass health modifiers (`healthModifier`, e.g. +4 for Warrior, +6 for Barbarian, -2 for Mage) adjusting maximum HP.
+- [x] Authoritative GM controls to adjust/override current HP and maximum HP bonus for any character in real time.
+- [x] Player controls to adjust their own current HP (taking damage or healing up to effective maximum HP).
+- [x] Real-time Socket.io synchronization (`health:update` and `health:updated`) with persistent storage across sessions and server restarts.
+- [x] Visual HP representations: token health bars on the 2D canvas, party list health badges with quick adjustment popovers, and floating HUD status.
+- [x] Class manager UI integration allowing the GM to configure class and subclass health modifiers with bounds validation (-100 to +100).
+- [x] Guided onboarding and class card integration displaying health bonuses and calculated maximum HP.
+
+Detailed specifications and implementation plan: [health system plan](health_system_plan.md).
+
+Phase 8 verification passes all 60 domain/integration tests and 23 browser tests, TypeScript, lint, formatting, and production build. Health regressions cover bounds, persisted GM/player authority, room isolation, concurrent deltas, failed writes, legacy migration, catalog changes, durable reconnect/restart, canvas proportions/colors/KO, class previews, modal focus restoration, and mobile reduced-motion controls. Live MongoDB integration was not run because `MONGODB_TEST_URI` was not configured.
+
 ## Operational follow-ups
 
 - [ ] GM recovery or role transfer.

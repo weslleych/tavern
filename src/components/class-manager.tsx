@@ -14,6 +14,7 @@ function newDefinition(): CharacterSubclass {
     name: 'New class',
     description: '',
     attributes: calculateAttributes(),
+    healthModifier: 0,
     buffs: [],
     debuffs: [],
   };
@@ -149,6 +150,20 @@ function DefinitionEditor({
           ))}
         </div>
       </fieldset>
+      <label>
+        {kind} health modifier
+        <input
+          aria-label={`${kind} health modifier`}
+          type="number"
+          required
+          min={-100}
+          max={100}
+          step={1}
+          defaultValue={value.healthModifier ?? 0}
+          onChange={(event) => onChange({ ...value, healthModifier: event.target.valueAsNumber })}
+        />
+      </label>
+      <p className="subtle">Adds to base 20 HP and specialization HP. Use -100 to +100.</p>
       <TraitEditor
         kind="Buff"
         traits={value.buffs}

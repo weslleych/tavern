@@ -42,6 +42,8 @@ import { FormSelect } from './ui/select';
 import { CharacterCreator, CharacterPortrait } from './character-creator';
 import { DiceSidebar } from './dice-sidebar';
 import { ClassManager } from './class-manager';
+import { HealthStatus } from './health-status';
+import { HealthEditor } from './health-editor';
 import { MapCanvas } from './canvas/map-canvas';
 import { drawTile } from './canvas/render';
 import { terrainInfo } from '../lib/terrain';
@@ -84,6 +86,7 @@ export function Tabletop({ code }: { code: string }) {
   const [notice, setNotice] = useState('');
   const [localError, setLocalError] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState<string>();
+  const [healthMemberId, setHealthMemberId] = useState<string>();
   const importRef = useRef<HTMLInputElement>(null);
   const isGM = snapshot?.you.role === 'gm';
   const canEdit = isGM && status === 'Connected';
@@ -91,6 +94,11 @@ export function Tabletop({ code }: { code: string }) {
   const selectedPlayer = snapshot?.members.find(
     (member) => member.id === selectedMemberId && member.role === 'player',
   );
+  const healthMember = snapshot?.members.find(
+    (member) => member.id === healthMemberId && member.role === 'player',
+  );
+  const hudMember = isGM ? selectedPlayer : snapshot?.you;
+  const healthBusy = status !== 'Connected' || pending > 0;
 
   function chooseTerrain(next: Terrain) {
     setTerrain(next);
@@ -478,6 +486,21 @@ export function Tabletop({ code }: { code: string }) {
                           {characterClassTitle(snapshot.room.classes, member.character)}
                         </small>
                       )}
+                    {member.role === 'player' &&
+                      member.health &&
+                      (isGM || member.id === snapshot.you.id ? (
+                        <button
+                          className="health-trigger"
+                          aria-label={`Adjust ${member.nickname}'s health`}
+                          aria-haspopup="dialog"
+                          disabled={healthBusy}
+                          onClick={() => setHealthMemberId(member.id)}
+                        >
+                          <HealthStatus health={member.health} nickname={member.nickname} />
+                        </button>
+                      ) : (
+                        <HealthStatus health={member.health} nickname={member.nickname} />
+                      ))}
                   </span>
                   {member.role === 'gm' && <Crown size={15} className="crown" />}
                 </li>
@@ -749,6 +772,33 @@ export function Tabletop({ code }: { code: string }) {
                     {characterClassTitle(snapshot.room.classes, snapshot.you.character)}
                   </span>
                 )}
+                {hudMember?.health && (
+                  <>
+                    <button
+                      className="health-trigger"
+                      aria-haspopup="dialog"
+                      aria-label={
+                        isGM ? `Open ${hudMember.nickname}'s health controls` : 'Adjust your health'
+                      }
+                      disabled={healthBusy}
+                      onClick={() => setHealthMemberId(hudMember.id)}
+                    >
+                      <HealthStatus health={hudMember.health} nickname={hudMember.nickname} />
+                    </button>
+                    {isGM &&
+                      [-1, 1].map((delta) => (
+                        <button
+                          className="health-step"
+                          key={delta}
+                          disabled={healthBusy}
+                          aria-label={`${delta < 0 ? 'Damage' : 'Heal'} ${hudMember.nickname} by 1 HP`}
+                          onClick={() => void room.adjustHealth({ memberId: hudMember.id, delta })}
+                        >
+                          {delta < 0 ? '−' : '+'}
+                        </button>
+                      ))}
+                  </>
+                )}
               </div>
               {isGM && (
                 <div className="gm-scene-controls">
@@ -882,6 +932,18 @@ export function Tabletop({ code }: { code: string }) {
           error={room.error}
           onSave={room.updateClasses}
           onClose={() => setClassManagerOpen(false)}
+        />
+      )}
+      {healthMember?.health && (isGM || healthMember.id === snapshot.you.id) && (
+        <HealthEditor
+          memberId={healthMember.id}
+          nickname={healthMember.nickname}
+          health={healthMember.health}
+          isGM={!!isGM}
+          busy={healthBusy}
+          error={room.error}
+          onAdjust={room.adjustHealth}
+          onClose={() => setHealthMemberId(undefined)}
         />
       )}
       {notice && (

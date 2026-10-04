@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import '../components/classes.css';
 @import '../components/dice-sidebar.css';
+@import '../components/health.css';
 
 @theme inline {
   --color-forest: #284e3c;

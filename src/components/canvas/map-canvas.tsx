@@ -263,6 +263,19 @@ export function MapCanvas({
           ctx.fillStyle = '#fff';
           ctx.textAlign = 'center';
           ctx.fillText(label, x * 32 + 16, y * 32 - 3);
+          if (member.health) {
+            const fraction = member.health.current / member.health.max;
+            ctx.fillStyle = '#172d2a';
+            ctx.fillRect(x * 32 + 3, y * 32 - 19, 26, 5);
+            ctx.fillStyle = fraction > 0.5 ? '#22c55e' : fraction >= 0.25 ? '#f59e0b' : '#ef4444';
+            ctx.fillRect(x * 32 + 4, y * 32 - 18, 24 * fraction, 3);
+            if (member.health.current === 0) {
+              ctx.fillStyle = '#172d2a';
+              ctx.fillRect(x * 32 + 8, y * 32 + 19, 16, 11);
+              ctx.fillStyle = '#fff';
+              ctx.fillText('KO', x * 32 + 16, y * 32 + 28);
+            }
+          }
         }
       if (hover.current && canEdit && (tool === 'paint' || tool === 'spawn')) {
         const { x, y } = hover.current;

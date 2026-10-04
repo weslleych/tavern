@@ -15,6 +15,22 @@ export const attributeDefinitions: AttributeDefinition[] = [
   { id: 'carisma', name: 'Carisma', abbreviation: 'CHA' },
 ];
 
+export const DEFAULT_BASE_HP = 20;
+
+export function calculateMaxHealth(
+  characterClass?: Pick<CharacterClass, 'healthModifier'>,
+  subclass?: Pick<CharacterSubclass, 'healthModifier'>,
+  gmBonus = 0,
+): number {
+  return Math.max(
+    1,
+    DEFAULT_BASE_HP +
+      (characterClass?.healthModifier ?? 0) +
+      (subclass?.healthModifier ?? 0) +
+      gmBonus,
+  );
+}
+
 export function calculateAttributes(
   characterClass?: { attributes: Partial<AttributeModifiers> },
   subclass?: { attributes: Partial<AttributeModifiers> },
@@ -65,11 +81,13 @@ function preset(
   attributes: Partial<AttributeModifiers>,
   buff: string,
   debuff: string,
+  healthModifier = 0,
 ): CharacterSubclass {
   return {
     id,
     name,
     description,
+    healthModifier,
     attributes: calculateAttributes({ attributes }),
     buffs: [{ id: `${id}-buff`, name: buff, description: `Traço narrativo de ${name}.` }],
     debuffs: [{ id: `${id}-debuff`, name: debuff, description: `Limitação narrativa de ${name}.` }],
@@ -86,6 +104,7 @@ export const defaultClasses: CharacterClass[] = [
       { forca: 2, constituicao: 1, inteligencia: -1 },
       'Determinação',
       'Rigidez',
+      4,
     ),
     subclasses: [
       preset(
@@ -95,6 +114,7 @@ export const defaultClasses: CharacterClass[] = [
         { constituicao: 1, sabedoria: 1, destreza: -1 },
         'Vigilância',
         'Cautela excessiva',
+        2,
       ),
       preset(
         'duelista',
@@ -103,6 +123,7 @@ export const defaultClasses: CharacterClass[] = [
         { destreza: 2, constituicao: -1 },
         'Reflexos',
         'Orgulho',
+        -1,
       ),
     ],
   },
@@ -114,6 +135,7 @@ export const defaultClasses: CharacterClass[] = [
       { inteligencia: 2, sabedoria: 1, forca: -1 },
       'Erudição',
       'Fragilidade',
+      -2,
     ),
     subclasses: [
       preset(
@@ -134,6 +156,7 @@ export const defaultClasses: CharacterClass[] = [
       { forca: 2, constituicao: 2, inteligencia: -1, carisma: -1 },
       'Tenacidade',
       'Impulsividade',
+      6,
     ),
     subclasses: [
       preset(
@@ -143,6 +166,7 @@ export const defaultClasses: CharacterClass[] = [
         { forca: 1, sabedoria: -1 },
         'Ímpeto',
         'Temeridade',
+        2,
       ),
     ],
   },
@@ -163,6 +187,7 @@ export const defaultClasses: CharacterClass[] = [
         { sabedoria: 1, destreza: 1 },
         'Orientação',
         'Desconfiança',
+        1,
       ),
     ],
   },

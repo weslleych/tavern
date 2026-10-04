@@ -16,6 +16,23 @@ export const attributeIdSchema = z.enum([
   'carisma',
 ]);
 const modifierSchema = z.number().int().min(-100).max(100);
+export const healthModifierSchema = modifierSchema.default(0);
+export const healthAdjustmentSchema = z
+  .object({
+    memberId: z.string().uuid().optional(),
+    current: z.number().int().min(0).max(999).optional(),
+    delta: z.number().int().min(-999).max(999).optional(),
+    gmBonus: modifierSchema.optional(),
+  })
+  .strict()
+  .refine(
+    (data) => data.current !== undefined || data.delta !== undefined || data.gmBonus !== undefined,
+    'Provide an HP change or bonus.',
+  )
+  .refine(
+    (data) => data.current === undefined || data.delta === undefined,
+    'Choose either current HP or a damage/healing amount.',
+  );
 export const attributesSchema = z
   .object({
     forca: modifierSchema,
@@ -42,6 +59,7 @@ export const subclassSchema = z
     name: z.string().trim().min(1).max(60),
     description: z.string().trim().max(240),
     attributes: attributesSchema,
+    healthModifier: healthModifierSchema,
     buffs: traitsSchema,
     debuffs: traitsSchema,
   })

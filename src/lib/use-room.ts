@@ -15,6 +15,7 @@ import type {
   DiceRequest,
   FogRequest,
   CharacterClass,
+  HealthAdjustmentRequest,
 } from '../types/game';
 
 export function useRoom(code: string) {
@@ -80,6 +81,18 @@ export function useRoom(code: string) {
           if (!previous) return previous;
           const replace = (member: typeof previous.you) =>
             member.id === update.memberId ? { ...member, token: update.token } : member;
+          return {
+            ...previous,
+            members: previous.members.map(replace),
+            you: replace(previous.you),
+          };
+        }),
+      );
+      connection.on('health:updated', (update) =>
+        setSnapshot((previous) => {
+          if (!previous) return previous;
+          const replace = (member: typeof previous.you) =>
+            member.id === update.memberId ? { ...member, health: update.health } : member;
           return {
             ...previous,
             members: previous.members.map(replace),
@@ -203,6 +216,8 @@ export function useRoom(code: string) {
       perform((connection) => connection.timeout(10000).emitWithAck('panel:import', request)),
     updateCharacter: (request: CharacterAppearance) =>
       perform((connection) => connection.timeout(10000).emitWithAck('character:update', request)),
+    adjustHealth: (request: HealthAdjustmentRequest) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('health:update', request)),
     moveToken: (request: MoveRequest) =>
       perform((connection) => connection.timeout(10000).emitWithAck('token:move', request), true),
     setMovement: (allowed: boolean) =>

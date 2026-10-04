@@ -1,15 +1,31 @@
 import { useId } from 'react';
 import { Check } from 'lucide-react';
-import { attributeDefinitions, signedModifier } from '../lib/classes';
+import {
+  attributeDefinitions,
+  signedModifier,
+  calculateMaxHealth,
+  DEFAULT_BASE_HP,
+} from '../lib/classes';
 import type { CharacterClass, CharacterSubclass } from '../types/game';
 
-function ChoiceDetails({ definition }: { definition: CharacterSubclass }) {
+function ChoiceDetails({
+  definition,
+  baseClass,
+}: {
+  definition: CharacterSubclass;
+  baseClass?: CharacterClass;
+}) {
   return (
     <>
       {definition.description && (
         <span className="class-card-description">{definition.description}</span>
       )}
       <span className="modifier-badges">
+        <span
+          className={`modifier-badge ${(definition.healthModifier ?? 0) >= 0 ? 'positive' : 'negative'}`}
+        >
+          {signedModifier(definition.healthModifier ?? 0)} HP
+        </span>
         {attributeDefinitions.flatMap(({ id, abbreviation, name }) =>
           definition.attributes[id] ? (
             <span
@@ -23,6 +39,10 @@ function ChoiceDetails({ definition }: { definition: CharacterSubclass }) {
             []
           ),
         )}
+      </span>
+      <span className="class-card-description">
+        Maximum HP:{' '}
+        {baseClass ? calculateMaxHealth(baseClass, definition) : calculateMaxHealth(definition)}
       </span>
       <span className="trait-badges">
         {(['buffs', 'debuffs'] as const).flatMap((kind) =>
@@ -76,6 +96,7 @@ export function ClassPicker({
           <span className="class-card-description">
             Follow your own path with a freeform adventurer.
           </span>
+          <span className="class-card-description">Maximum HP: {DEFAULT_BASE_HP}</span>
         </label>
         {classes.map((item) => (
           <label
@@ -134,7 +155,7 @@ export function ClassPicker({
                 <span className="class-card-heading">
                   {item.name} {subclass?.id === item.id && <Check size={16} aria-hidden="true" />}
                 </span>
-                <ChoiceDetails definition={item} />
+                <ChoiceDetails definition={item} baseClass={characterClass} />
               </label>
             ))}
           </div>
