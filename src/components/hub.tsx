@@ -17,6 +17,7 @@ import {
   Users,
   WandSparkles,
 } from 'lucide-react';
+import { FormSelect } from './ui/select';
 import { Brand } from './ui/brand';
 import { MapPreview } from './canvas/map-preview';
 import { rememberTable, savedTables, sessionFor, type SavedTable } from '../lib/sessions';
@@ -227,10 +228,15 @@ export function Hub() {
                   </label>
                   <label>
                     Starting map
-                    <select name="template" defaultValue="woodland">
-                      <option value="woodland">Woodland clearing · ready to explore</option>
-                      <option value="blank">Blank canvas · build from scratch</option>
-                    </select>
+                    <FormSelect
+                      label="Starting map"
+                      name="template"
+                      defaultValue="woodland"
+                      options={[
+                        { value: 'woodland', label: 'Woodland clearing · ready to explore' },
+                        { value: 'blank', label: 'Blank canvas · build from scratch' },
+                      ]}
+                    />
                   </label>
                 </>
               ) : (

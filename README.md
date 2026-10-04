@@ -15,31 +15,40 @@ npm run dev
 
 Open [localhost:3000](http://localhost:3000). No database setup is needed: maps and session hashes persist in `.tavern/store.json`. Set `MONGODB_URI` in `.env.local` to use MongoDB instead. See [setup](docs/setup.md).
 
-## MVP features
+## Features
 
 - Create a table as its GM, join by code or invite, and return from the same browser.
-- Create and rename up to 30 scenes; switch the whole party between them.
-- Paint seven terrain types, erase, and mark blocked tiles on configurable 5–64 column/row maps.
+- Create, rename, order, duplicate, and remove scenes; keep 1–30 per table and switch the whole party between them.
+- Paint nine terrain types, erase, and mark blocked tiles on configurable 5–64 column/row maps; add optional PNG sprites.
 - Pan, zoom, fit, and paint with mouse, touch, or keyboard.
 - Start with an empty canvas or a generated woodland clearing.
 - See live party presence, confirmed map edits, and automatic reconnect.
 - Retain the GM role after refresh and server restart.
 - Persist with MongoDB or local storage; export/import scenes as versioned JSON.
-- Use responsive layouts, native dialogs, visible focus, and reduced-motion support.
+- Use responsive layouts, native dialogs, shadcn/Radix selects, visible focus, and reduced-motion support.
+- As a player, create a modular pixel character per table, then edit your appearance from your portrait. The GM coordinates without a character.
+- As GM, allow/pause player movement, reposition selected players, and mark a preferred spawn per scene.
+- Spawn near the preferred point (first free tile when unset) and move with WASD, arrows, adjacent clicks, token drops, or touch controls; the server enforces collisions.
+- Roll shared dice with a saved 20-roll history, and reveal/hide terrain with GM-controlled fog of war.
 
 Private session credentials live in browser local storage. **Keep the GM's browser data:** clearing it removes GM access. Invites grant player access; they never share the GM credential. There are no accounts or recovery flow in this MVP.
 
 ## Controls
 
-| Action         | Control                                           |
-| -------------- | ------------------------------------------------- |
-| Paint          | Click or drag; `B` selects the brush              |
-| Select terrain | `1`–`7`                                           |
-| Pan            | Hand tool (`H`), Alt-drag, or middle-button drag  |
-| Zoom           | Scroll, `+` / `−`, or viewport buttons            |
-| Keyboard paint | Focus the canvas, use arrows, then Enter or Space |
+| Action         | Control                                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| Paint          | Click or drag; `B` selects the brush                                                                         |
+| Select terrain | `1`–`9`, then `0` for Flowers                                                                                |
+| Pan            | Hand tool (`H`), Alt-drag, or middle-button drag                                                             |
+| Zoom           | Scroll, `+` / `−`, or viewport buttons                                                                       |
+| Keyboard paint | Focus the canvas, use arrows, then Enter or Space                                                            |
+| Move character | Move tool (`M`); focused canvas WASD/arrows, adjacent click, one-step token drop, or direction buttons       |
+| GM controls    | Lock button allows/pauses players; select a player in the party or on the map, then click/drag to reposition |
+| Spawn          | GM flag tool; click or arrows + Enter to choose a preferred point per scene                                  |
+| Fog            | GM toggles fog, then uses Reveal/Hide tools with drag or keyboard painting                                   |
+| Dice           | Open the dice tray in the map toolbar                                                                        |
 
-Only the GM edits maps and chooses scenes. Blocking is map metadata for future tokens.
+Only the GM edits maps, chooses scenes, and controls fog. Players move their own character one tile at a time when the GM permits it, onto non-empty, unblocked, unoccupied revealed terrain. The GM may reposition players at any distance or behind fog, including while movement is paused. Ordinary collision refusals do not display alerts. Empty or full scenes retain the character with no token until a free tile becomes available.
 
 ## Development
 
@@ -55,6 +64,8 @@ npm start
 
 Always use the npm scripts: a custom Node server runs Next.js, the HTTP API, and Socket.io together. Hosting requires **one persistent Node process** and writable storage or MongoDB. Serverless hosting and horizontal scaling are outside this MVP.
 
-Read [setup](docs/setup.md), [architecture](docs/architecture.md), [data models](docs/data-models.md), and [roadmap](docs/roadmap.md). Tokens, dice, and fog of war are future work.
+Read [setup](docs/setup.md), [architecture](docs/architecture.md), [data models](docs/data-models.md), [characters](docs/characters.md), the [validated phase 4 plan](docs/character_system_plan.md), and [roadmap](docs/roadmap.md).
+
+The [decision records](docs/adr/README.md) preserve accepted scope changes and their rationale, starting with the six improvements added after the initial phase 4 implementation.
 
 Released under the [project license](LICENSE).

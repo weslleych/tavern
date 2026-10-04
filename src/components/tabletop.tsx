@@ -24,15 +24,29 @@ import {
   Upload,
   Users,
   X,
+  ArrowUp,
+  ArrowDown,
+  Dices,
+  Eye,
+  EyeOff,
+  Footprints,
+  Trash2,
+  UserRound,
+  Flag,
+  LockKeyhole,
+  UnlockKeyhole,
 } from 'lucide-react';
 import { Brand } from './ui/brand';
 import { Modal } from './ui/modal';
+import { FormSelect } from './ui/select';
+import { CharacterCreator, CharacterPortrait } from './character-creator';
+import { DiceTray } from './dice-tray';
 import { MapCanvas } from './canvas/map-canvas';
 import { drawTile } from './canvas/render';
 import { terrainInfo } from '../lib/terrain';
 import { useRoom } from '../lib/use-room';
-import { importSchema, readableError } from '../lib/validation';
-import { terrains, type Terrain } from '../types/game';
+import { importSchema, readableError, spriteSchema } from '../lib/validation';
+import { terrains, type Terrain, type MapTool } from '../types/game';
 
 function TerrainSwatch({ terrain }: { terrain: Terrain }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -48,16 +62,27 @@ export function Tabletop({ code }: { code: string }) {
   const { snapshot, status, pending } = room;
   const [terrain, setTerrain] = useState<Terrain>('grass');
   const [blocked, setBlocked] = useState(false);
-  const [tool, setTool] = useState<'paint' | 'pan'>('paint');
+  const [tool, setTool] = useState<MapTool>('paint');
   const [grid, setGrid] = useState(true);
   const [collisions, setCollisions] = useState(false);
-  const [dialog, setDialog] = useState<'new' | 'rename' | 'help' | null>(null);
+  const [dialog, setDialog] = useState<'new' | 'rename' | 'help' | 'character' | 'remove' | null>(
+    null,
+  );
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; name: string } | null>(null);
+  const [diceOpen, setDiceOpen] = useState(false);
+  const [sprite, setSprite] = useState<string | undefined>();
+  const spriteRef = useRef<HTMLInputElement>(null);
   const [sidebar, setSidebar] = useState(false);
   const [notice, setNotice] = useState('');
   const [localError, setLocalError] = useState('');
+  const [selectedMemberId, setSelectedMemberId] = useState<string>();
   const importRef = useRef<HTMLInputElement>(null);
   const isGM = snapshot?.you.role === 'gm';
   const canEdit = isGM && status === 'Connected';
+  const playersCanMove = snapshot?.room.playersCanMove !== false;
+  const selectedPlayer = snapshot?.members.find(
+    (member) => member.id === selectedMemberId && member.role === 'player',
+  );
 
   function chooseTerrain(next: Terrain) {
     setTerrain(next);
@@ -67,13 +92,15 @@ export function Tabletop({ code }: { code: string }) {
   useEffect(() => {
     function key(event: globalThis.KeyboardEvent) {
       if (
-        (event.target as HTMLElement).closest('input, textarea, select, dialog') ||
+        (event.target as HTMLElement).closest(
+          'input, textarea, select, dialog, [role="combobox"], [role="listbox"]',
+        ) ||
         event.ctrlKey ||
         event.metaKey ||
         event.altKey
       )
         return;
-      const index = Number(event.key) - 1;
+      const index = event.key === '0' ? 9 : Number(event.key) - 1;
       if (index >= 0 && index < terrains.length && isGM) {
         const next = terrains[index];
         setTerrain(next);
@@ -82,6 +109,7 @@ export function Tabletop({ code }: { code: string }) {
       }
       if (event.key.toLowerCase() === 'h') setTool('pan');
       if (event.key.toLowerCase() === 'b' && isGM) setTool('paint');
+      if (event.key.toLowerCase() === 'm') setTool('move');
     }
     document.addEventListener('keydown', key);
     return () => document.removeEventListener('keydown', key);
@@ -150,6 +178,39 @@ export function Tabletop({ code }: { code: string }) {
       if (importRef.current) importRef.current.value = '';
     }
   }
+  async function importSprite(file?: File) {
+    if (!file) return;
+    try {
+      if (file.type !== 'image/png' || file.size > 256 * 1024)
+        throw new Error('Choose a PNG up to 256 KB.');
+      const image = await createImageBitmap(file);
+      try {
+        if (image.width > 128 || image.height > 128)
+          throw new Error('Choose a sprite up to 128 × 128 pixels.');
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Your browser could not load this sprite.');
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(image, 0, 0, 32, 32);
+        setSprite(spriteSchema.parse(canvas.toDataURL('image/png')));
+        setTool('paint');
+        setNotice('Custom sprite ready. Paint it onto a terrain tile.');
+      } finally {
+        image.close();
+      }
+    } catch (error) {
+      setLocalError(readableError(error));
+    } finally {
+      if (spriteRef.current) spriteRef.current.value = '';
+    }
+  }
+  function reorderScene(index: number, delta: number) {
+    if (!snapshot) return;
+    const ids = snapshot.panels.map((panel) => panel.id);
+    [ids[index], ids[index + delta]] = [ids[index + delta], ids[index]];
+    void room.reorderPanels(ids);
+  }
 
   if (!snapshot)
     return (
@@ -181,6 +242,32 @@ export function Tabletop({ code }: { code: string }) {
       </div>
     );
 
+  if (!isGM && !snapshot.you.character)
+    return (
+      <main className="character-gate" id="main-content">
+        <div className="character-gate-nav">
+          <Brand />
+          <span className="connection">
+            <span className="live-dot" />
+            <span data-testid="connection-status">{status}</span>
+          </span>
+        </div>
+        <section className="character-gate-card">
+          <span className="eyebrow">{snapshot.room.name}</span>
+          <h1>Meet your adventurer</h1>
+          <CharacterCreator
+            nickname={snapshot.you.nickname}
+            busy={status !== 'Connected' || pending > 0}
+            error={room.error}
+            onSave={room.updateCharacter}
+          />
+          <Link href="/" className="tables-link">
+            <ArrowLeft size={15} /> Your tables
+          </Link>
+        </section>
+      </main>
+    );
+
   return (
     <div className="room-shell">
       <header className="room-nav">
@@ -201,9 +288,22 @@ export function Tabletop({ code }: { code: string }) {
           <button className="button invite-button" onClick={copyInvite}>
             <Users size={16} /> Invite friends
           </button>
-          <span className="self-avatar" title={snapshot.you.nickname}>
-            {snapshot.you.nickname[0].toUpperCase()}
-          </span>
+          {isGM ? (
+            <span className="self-avatar" title={`${snapshot.you.nickname} · Game master`}>
+              <Crown size={20} aria-label="Game master" />
+            </span>
+          ) : (
+            snapshot.you.character && (
+              <button
+                className="self-avatar"
+                title={snapshot.you.nickname}
+                aria-label="Edit your character"
+                onClick={() => setDialog('character')}
+              >
+                <CharacterPortrait appearance={snapshot.you.character} />
+              </button>
+            )
+          )}
         </div>
       </header>
       <div className="room-body">
@@ -229,33 +329,77 @@ export function Tabletop({ code }: { code: string }) {
           </div>
           <div className="scene-list">
             {snapshot.panels.map((panel, index) => (
-              <button
-                key={panel.id}
-                disabled={!canEdit}
-                className={`scene-item ${panel.id === snapshot.panel.id ? 'active' : ''}`}
-                onClick={() => {
-                  void room.changePanel(panel.id);
-                  setSidebar(false);
-                }}
-                aria-current={panel.id === snapshot.panel.id ? 'true' : undefined}
-              >
-                <span className="scene-thumbnail">
-                  <Map size={20} />
-                </span>
-                <span>
-                  <strong>{panel.name}</strong>
-                  <small>
-                    {panel.grid.cols} × {panel.grid.rows} tiles
-                  </small>
-                </span>
-                <span className="scene-number">{String(index + 1).padStart(2, '0')}</span>
-              </button>
+              <div className="scene-row" key={panel.id}>
+                <button
+                  disabled={!canEdit}
+                  className={`scene-item ${panel.id === snapshot.panel.id ? 'active' : ''}`}
+                  onClick={() => {
+                    void room.changePanel(panel.id);
+                    setSidebar(false);
+                  }}
+                  aria-current={panel.id === snapshot.panel.id ? 'true' : undefined}
+                >
+                  <span className="scene-thumbnail">
+                    <Map size={20} />
+                  </span>
+                  <span>
+                    <strong>{panel.name}</strong>
+                    <small>
+                      {panel.grid.cols} × {panel.grid.rows} tiles
+                    </small>
+                  </span>
+                  <span className="scene-number">{String(index + 1).padStart(2, '0')}</span>
+                </button>
+                {isGM && (
+                  <div className="scene-order-controls">
+                    <button
+                      className="icon-button"
+                      aria-label="Move scene up"
+                      disabled={!canEdit || index === 0}
+                      onClick={() => reorderScene(index, -1)}
+                    >
+                      <ArrowUp size={13} />
+                    </button>
+                    <button
+                      className="icon-button"
+                      aria-label="Move scene down"
+                      disabled={!canEdit || index === snapshot.panels.length - 1}
+                      onClick={() => reorderScene(index, 1)}
+                    >
+                      <ArrowDown size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
           {isGM && (
             <button className="new-scene" onClick={() => setDialog('new')} disabled={!canEdit}>
               <Plus size={17} /> New scene
             </button>
+          )}
+          {isGM && (
+            <div className="scene-manage-actions">
+              <button
+                className="button secondary"
+                aria-label="Duplicate current scene"
+                disabled={!canEdit || snapshot.panels.length >= 30}
+                onClick={() => void room.duplicatePanel(snapshot.panel.id)}
+              >
+                <Copy size={15} /> Duplicate
+              </button>
+              <button
+                className="icon-button"
+                aria-label="Remove current scene"
+                disabled={!canEdit || snapshot.panels.length <= 1}
+                onClick={() => {
+                  setRemoveTarget({ id: snapshot.panel.id, name: snapshot.panel.name });
+                  setDialog('remove');
+                }}
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
           )}
           {!isGM && (
             <p className="player-note">
@@ -270,10 +414,38 @@ export function Tabletop({ code }: { code: string }) {
             <ul className="member-list" data-testid="member-list">
               {snapshot.members.map((member, index) => (
                 <li key={member.id}>
-                  <span className={`member-avatar avatar-${index % 4}`}>
-                    {member.nickname[0].toUpperCase()}
+                  <button
+                    className={`member-avatar avatar-${index % 4}`}
+                    disabled={member.role === 'gm' || (!isGM && member.id !== snapshot.you.id)}
+                    aria-label={
+                      member.role === 'gm'
+                        ? `${member.nickname}, game master`
+                        : isGM
+                          ? `Move ${member.nickname}`
+                          : member.id === snapshot.you.id && !isGM
+                            ? 'Customize your adventurer'
+                            : `${member.nickname}'s character`
+                    }
+                    aria-pressed={
+                      isGM && member.role === 'player' ? selectedMemberId === member.id : undefined
+                    }
+                    onClick={() => {
+                      if (isGM && member.role === 'player') {
+                        setSelectedMemberId(member.id);
+                        setTool('move');
+                        setSidebar(false);
+                      } else if (!isGM) setDialog('character');
+                    }}
+                  >
+                    {member.role === 'gm' ? (
+                      <Crown size={17} aria-hidden="true" />
+                    ) : member.character ? (
+                      <CharacterPortrait appearance={member.character} />
+                    ) : (
+                      member.nickname[0].toUpperCase()
+                    )}
                     <span className="member-online" />
-                  </span>
+                  </button>
                   <span>
                     <strong>
                       {member.nickname}
@@ -408,15 +580,88 @@ export function Tabletop({ code }: { code: string }) {
                 )}
                 <button
                   aria-label="Pan tool"
-                  aria-pressed={tool === 'pan' || !isGM}
+                  aria-pressed={tool === 'pan'}
                   onClick={() => setTool('pan')}
                   title="Pan (H)"
                 >
                   <Hand size={17} />
                 </button>
+                <button
+                  aria-label={isGM ? 'Move players' : 'Move character'}
+                  aria-pressed={tool === 'move' || (!isGM && tool !== 'pan')}
+                  onClick={() => setTool('move')}
+                  title="Move (M)"
+                >
+                  <Footprints size={17} />
+                </button>
+                {isGM && (
+                  <>
+                    <button
+                      aria-label="Allow player movement"
+                      aria-pressed={playersCanMove}
+                      disabled={!canEdit || pending > 0}
+                      onClick={() => void room.setMovement(!playersCanMove)}
+                      title={playersCanMove ? 'Pause player movement' : 'Allow player movement'}
+                    >
+                      {playersCanMove ? <UnlockKeyhole size={17} /> : <LockKeyhole size={17} />}
+                    </button>
+                    <button
+                      aria-label="Set spawn point"
+                      aria-pressed={tool === 'spawn'}
+                      disabled={!canEdit}
+                      onClick={() => setTool('spawn')}
+                      title="Choose the preferred spawn tile"
+                    >
+                      <Flag size={17} />
+                    </button>
+                    <button
+                      aria-label="Toggle fog of war"
+                      aria-pressed={!!snapshot.panel.fog?.enabled}
+                      disabled={!canEdit}
+                      onClick={() =>
+                        void room.updateFog({
+                          panelId: snapshot.panel.id,
+                          enabled: !snapshot.panel.fog?.enabled,
+                        })
+                      }
+                      title="Fog of war"
+                    >
+                      <EyeOff size={17} />
+                    </button>
+                    {snapshot.panel.fog?.enabled && (
+                      <>
+                        <button
+                          aria-label="Reveal fog"
+                          aria-pressed={tool === 'reveal'}
+                          disabled={!canEdit}
+                          onClick={() => setTool('reveal')}
+                          title="Reveal tiles"
+                        >
+                          <Eye size={17} />
+                        </button>
+                        <button
+                          aria-label="Hide tiles"
+                          aria-pressed={tool === 'hide'}
+                          disabled={!canEdit}
+                          onClick={() => setTool('hide')}
+                          title="Hide tiles"
+                        >
+                          <EyeOff size={17} />
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
                 <span />
                 <button aria-label="Toggle grid" aria-pressed={grid} onClick={() => setGrid(!grid)}>
                   <Grid2X2 size={17} />
+                </button>
+                <button
+                  aria-label="Open dice"
+                  aria-expanded={diceOpen}
+                  onClick={() => setDiceOpen((open) => !open)}
+                >
+                  <Dices size={17} />
                 </button>
               </div>
               {isGM ? (
@@ -435,12 +680,69 @@ export function Tabletop({ code }: { code: string }) {
               terrain={terrain}
               blocked={blocked}
               canEdit={!!canEdit}
-              tool={tool}
+              tool={isGM ? tool : tool === 'pan' ? 'pan' : 'move'}
               gridVisible={grid}
               collisionsVisible={isGM && collisions}
               onPaint={room.paint}
+              members={snapshot.members}
+              you={snapshot.you}
+              canMove={status === 'Connected' && (isGM || playersCanMove)}
+              selectedMemberId={selectedMemberId}
+              onSelectMember={setSelectedMemberId}
+              sprite={sprite}
+              onMove={room.moveToken}
+              onSpawn={(point) => room.setSpawn({ panelId: snapshot.panel.id, point })}
+              onFog={(cells, revealed) =>
+                room.updateFog({ panelId: snapshot.panel.id, cells, revealed })
+              }
             />
+            {diceOpen && (
+              <DiceTray
+                rolls={snapshot.rolls}
+                disabled={status !== 'Connected'}
+                onRoll={room.rollDice}
+                onClose={() => setDiceOpen(false)}
+              />
+            )}
+            <div className="character-hud">
+              {!isGM && snapshot.you.character && (
+                <button aria-label="Customize character" onClick={() => setDialog('character')}>
+                  <CharacterPortrait appearance={snapshot.you.character} size={32} />
+                  <UserRound size={14} />
+                </button>
+              )}
+              {isGM && <Crown size={16} />}
+              <span data-testid="token-position" role="status">
+                {isGM
+                  ? selectedPlayer?.token
+                    ? `${selectedPlayer.nickname} · Position ${selectedPlayer.token.x + 1}, ${selectedPlayer.token.y + 1}`
+                    : 'Select a player to move'
+                  : snapshot.you.token
+                    ? `Position ${snapshot.you.token.x + 1}, ${snapshot.you.token.y + 1}`
+                    : 'Waiting for a free tile'}
+              </span>
+            </div>
             {isGM && (
+              <div className="gm-scene-controls">
+                <span>{playersCanMove ? 'Players can move freely' : 'Player movement paused'}</span>
+                <span data-testid="spawn-position">
+                  <Flag size={13} />{' '}
+                  {snapshot.panel.spawnPoint
+                    ? `Spawn ${snapshot.panel.spawnPoint.x + 1}, ${snapshot.panel.spawnPoint.y + 1}`
+                    : 'No preferred spawn'}
+                </span>
+                {snapshot.panel.spawnPoint && (
+                  <button
+                    disabled={!canEdit}
+                    aria-label="Clear spawn point"
+                    onClick={() => void room.setSpawn({ panelId: snapshot.panel.id, point: null })}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+            )}
+            {isGM && tool === 'paint' && (
               <div className="brush-dock">
                 <div className="brush-heading">
                   <span>
@@ -483,11 +785,37 @@ export function Tabletop({ code }: { code: string }) {
                   </label>
                   <span className="brush-current">{terrainInfo[terrain].label}</span>
                 </div>
+                <div className="sprite-options">
+                  <button
+                    className="button secondary"
+                    disabled={!canEdit}
+                    onClick={() => spriteRef.current?.click()}
+                  >
+                    <Upload size={14} /> {sprite ? 'Replace sprite' : 'Custom sprite'}
+                  </button>
+                  {sprite && (
+                    <button className="button secondary" onClick={() => setSprite(undefined)}>
+                      Clear sprite
+                    </button>
+                  )}
+                  <input
+                    type="file"
+                    ref={spriteRef}
+                    accept="image/png,.png"
+                    aria-label="Custom sprite file"
+                    className="sr-only"
+                    tabIndex={-1}
+                    onChange={(event) => void importSprite(event.target.files?.[0])}
+                  />
+                </div>
               </div>
             )}
             {!isGM && (
               <div className="player-view-note">
-                <Users size={15} /> You’re exploring the world together. Your GM sets the scene.
+                <Footprints size={15} />{' '}
+                {playersCanMove
+                  ? 'WASD or arrows to move · Click an adjacent tile'
+                  : 'Movement paused by GM'}
               </div>
             )}
           </div>
@@ -497,7 +825,9 @@ export function Tabletop({ code }: { code: string }) {
               {isGM ? 'Your world, your story.' : 'Adventure is a team sport.'}
             </span>
             <span data-testid="tile-count">{snapshot.panel.tiles.length} tiles</span>
-            <span>{isGM ? 'B paint · H pan · 1–7 terrains' : 'Drag to pan · Scroll to zoom'}</span>
+            <span>
+              {isGM ? 'B paint · H pan · M move · 1–0 terrains' : 'M move · H pan · Scroll to zoom'}
+            </span>
           </footer>
         </main>
       </div>
@@ -514,11 +844,54 @@ export function Tabletop({ code }: { code: string }) {
               ? 'Set a new scene'
               : dialog === 'rename'
                 ? 'Rename your scene'
-                : 'Make yourself at home'
+                : dialog === 'character'
+                  ? 'Your adventurer'
+                  : dialog === 'remove'
+                    ? 'Remove this scene?'
+                    : 'Make yourself at home'
           }
           onClose={() => setDialog(null)}
         >
-          {dialog === 'help' ? (
+          {dialog === 'character' ? (
+            <CharacterCreator
+              initial={snapshot.you.character}
+              nickname={snapshot.you.nickname}
+              busy={status !== 'Connected' || pending > 0}
+              error={room.error}
+              editing
+              onSave={async (appearance) => {
+                const saved = await room.updateCharacter(appearance);
+                if (saved) setDialog(null);
+                return saved;
+              }}
+            />
+          ) : dialog === 'remove' ? (
+            <>
+              <p className="modal-description">
+                Remove “{removeTarget?.name}” and its map? Your party will move to another scene if
+                it is active.
+              </p>
+              {room.error && (
+                <p role="alert" className="form-error">
+                  {room.error}
+                </p>
+              )}
+              <div className="modal-actions">
+                <button className="button secondary" onClick={() => setDialog(null)}>
+                  Cancel
+                </button>
+                <button
+                  className="button primary"
+                  disabled={!canEdit || pending > 0}
+                  onClick={async () => {
+                    if (removeTarget && (await room.removePanel(removeTarget.id))) setDialog(null);
+                  }}
+                >
+                  Remove scene
+                </button>
+              </div>
+            </>
+          ) : dialog === 'help' ? (
             <div className="help-content">
               <p>
                 Your table stays in sync with everyone in the party. Changes are saved as you paint.
@@ -526,7 +899,10 @@ export function Tabletop({ code }: { code: string }) {
               <dl>
                 <div>
                   <dt>Paint</dt>
-                  <dd>Click or drag across tiles. Choose a terrain with 1–7.</dd>
+                  <dd>
+                    Click or drag across tiles. Choose a terrain with 1–9 or 0. Add an optional PNG
+                    sprite in the palette.
+                  </dd>
                 </div>
                 <div>
                   <dt>Pan</dt>
@@ -540,7 +916,32 @@ export function Tabletop({ code }: { code: string }) {
                 </div>
                 <div>
                   <dt>Keyboard</dt>
-                  <dd>Focus the map, use arrow keys to select a tile, and Enter to paint.</dd>
+                  <dd>
+                    In Paint mode, arrows select a tile and Enter paints. In Move mode (M), WASD and
+                    arrows move your character one tile. Click an adjacent tile or drag your token
+                    one step. The GM selects players in the party or on the map and can drag them to
+                    any valid tile, including while player movement is paused.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Player movement and spawn</dt>
+                  <dd>
+                    The lock button allows or pauses player movement. Choose the flag tool to mark a
+                    preferred spawn per scene. Players appear there, or on the closest free tile.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Fog of war</dt>
+                  <dd>
+                    The GM can toggle fog and paint revealed or hidden tiles. Players can move only
+                    onto revealed terrain.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Dice</dt>
+                  <dd>
+                    Open the dice tray to roll with your party. The table keeps the last 20 rolls.
+                  </dd>
                 </div>
                 <div>
                   <dt>Invite</dt>
@@ -597,10 +998,15 @@ export function Tabletop({ code }: { code: string }) {
                   </div>
                   <label>
                     Starting terrain
-                    <select name="template" defaultValue="blank">
-                      <option value="blank">Blank canvas</option>
-                      <option value="woodland">Woodland clearing</option>
-                    </select>
+                    <FormSelect
+                      label="Starting terrain"
+                      name="template"
+                      defaultValue="blank"
+                      options={[
+                        { value: 'blank', label: 'Blank canvas' },
+                        { value: 'woodland', label: 'Woodland clearing' },
+                      ]}
+                    />
                   </label>
                 </>
               )}

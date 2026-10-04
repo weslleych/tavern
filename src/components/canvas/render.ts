@@ -24,7 +24,24 @@ export function drawTile(
           ? '#d4c19a'
           : '#96b77c';
   rect(ground, 0, 0, 16, 16);
-  if (terrain === 'empty') {
+  if (terrain === 'sand') {
+    rect('#d5bd82', 0, 0, 16, 16);
+    rect('#e8d59f', 2, 3, 5, 1);
+    rect('#bfa56f', 10, 10, 3, 1);
+    rect('#e8d59f', 4, 13, 2, 1);
+  } else if (terrain === 'snow') {
+    rect('#e2ebe7', 0, 0, 16, 16);
+    rect('#c0d5d4', 2, 11, 4, 1);
+    rect('#ffffff', 9, 3, 5, 1);
+    rect('#c0d5d4', 12, 13, 2, 1);
+  } else if (terrain === 'flowers') {
+    rect('#315d44', 4, 9, 1, 3);
+    rect('#315d44', 11, 5, 1, 3);
+    rect('#be8d9c', 3, 7, 3, 2);
+    rect('#efe4c8', 10, 3, 3, 2);
+    rect('#c7a34d', 4, 8, 1, 1);
+    rect('#c7a34d', 11, 4, 1, 1);
+  } else if (terrain === 'empty') {
     rect('#d7dfcc', 7, 7, 2, 2);
   } else if (terrain === 'water') {
     rect('#6aa2af', 0, 8, 16, 3);

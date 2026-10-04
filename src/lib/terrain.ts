@@ -8,6 +8,9 @@ export const terrainInfo: Record<Terrain, { label: string; color: string; shortc
   mountain: { label: 'Mountain', color: '#959b8d', shortcut: '5' },
   stone: { label: 'Path', color: '#d2bd91', shortcut: '6' },
   wall: { label: 'Wall', color: '#8a8274', shortcut: '7' },
+  sand: { label: 'Sand', color: '#d5bd82', shortcut: '8' },
+  snow: { label: 'Snow', color: '#e2ebe7', shortcut: '9' },
+  flowers: { label: 'Flowers', color: '#96b77c', shortcut: '0' },
 };
 
 export function woodland(grid: Grid): Tile[] {

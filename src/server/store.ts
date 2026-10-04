@@ -96,6 +96,14 @@ export class MongoStore implements GameStore {
         }
       }
     }
+    // Point rooms at surviving scenes before deleting old documents. Retry safe.
+    for (const collection of ['panels', 'sessions', 'rooms'] as const) {
+      const retained = new Set(data[collection].map((item) => item.id));
+      const removed = this.previous[collection]
+        .filter((item) => !retained.has(item.id))
+        .map((item) => item.id);
+      if (removed.length) await db.collection(collection).deleteMany({ id: { $in: removed } });
+    }
     this.previous = structuredClone(data);
   }
   async close() {

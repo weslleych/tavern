@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import type { Server as HttpServer } from 'node:http';
-import type { GameService } from './game';
+import { MoveRejected, type GameService } from './game';
 import type { Session } from './store';
 import type { Ack, ClientEvents, Member, ServerEvents } from '../types/game';
 import { readableError } from '../lib/validation';
@@ -37,6 +37,15 @@ export function attachGateway(server: HttpServer, game: GameService) {
       }
     }
   }
+  async function presence(roomId: string) {
+    const online = members(roomId);
+    for (const socket of io.sockets.sockets.values()) {
+      if (socket.data.member?.roomId === roomId && socket.rooms.has(channel(roomId))) {
+        const view = await game.snapshot(socket.data.member, online);
+        socket.emit('room:presence', view.members);
+      }
+    }
+  }
   io.use(async (socket, next) => {
     try {
       socket.data.member = await game.authenticate(socket.handshake.auth);
@@ -63,7 +72,11 @@ export function attachGateway(server: HttpServer, game: GameService) {
       try {
         ack({ ok: true, data: await action() });
       } catch (error) {
-        ack({ ok: false, error: readableError(error) });
+        ack({
+          ok: false,
+          error: readableError(error),
+          ...(error instanceof MoveRejected ? { code: error.code } : {}),
+        });
       }
     }
     socket.on(
@@ -72,11 +85,16 @@ export function attachGateway(server: HttpServer, game: GameService) {
         void run(ack, async () => {
           const tiles = await game.paint(member, request);
           const snapshot = await game.snapshot(member);
-          io.to(channel(member.roomId)).emit('tile:updated', {
-            panelId: request.panelId,
-            tiles,
-            updatedAt: snapshot.room.updatedAt,
-          });
+          if (snapshot.panel.fog?.enabled || request.panelId !== snapshot.panel.id) {
+            await snapshots(member.roomId);
+          } else {
+            io.to(channel(member.roomId)).emit('tile:updated', {
+              panelId: request.panelId,
+              tiles,
+              updatedAt: snapshot.room.updatedAt,
+            });
+            await presence(member.roomId);
+          }
           return tiles;
         }),
     );
@@ -116,12 +134,107 @@ export function attachGateway(server: HttpServer, game: GameService) {
           return null;
         }),
     );
-    socket.on('disconnect', () =>
-      io.to(channel(member.roomId)).emit('room:presence', members(member.roomId)),
+    socket.on(
+      'character:update',
+      (request, ack) =>
+        void run(ack, async () => {
+          const character = await game.updateCharacter(member, request);
+          await snapshots(member.roomId);
+          await presence(member.roomId);
+          return character;
+        }),
     );
+    socket.on(
+      'token:move',
+      (request, ack) =>
+        void run(ack, async () => {
+          const token = await game.moveToken(member, request);
+          const memberId = request.memberId || member.id;
+          const online = members(member.roomId);
+          for (const recipient of io.sockets.sockets.values()) {
+            if (
+              recipient.data.member?.roomId === member.roomId &&
+              recipient.rooms.has(channel(member.roomId))
+            ) {
+              const view = await game.snapshot(recipient.data.member, online);
+              recipient.emit('token:moved', {
+                memberId,
+                token: view.members.find((item) => item.id === memberId)?.token,
+              });
+            }
+          }
+          return token;
+        }),
+    );
+    socket.on(
+      'dice:roll',
+      (request, ack) =>
+        void run(ack, async () => {
+          const roll = await game.rollDice(member, request);
+          io.to(channel(member.roomId)).emit('dice:rolled', roll);
+          return roll;
+        }),
+    );
+    socket.on(
+      'room:movement',
+      (request, ack) =>
+        void run(ack, async () => {
+          await game.setMovement(member, request);
+          await snapshots(member.roomId);
+          return null;
+        }),
+    );
+    socket.on(
+      'panel:spawn',
+      (request, ack) =>
+        void run(ack, async () => {
+          await game.setSpawn(member, request);
+          await snapshots(member.roomId);
+          return null;
+        }),
+    );
+    socket.on(
+      'fog:update',
+      (request, ack) =>
+        void run(ack, async () => {
+          await game.updateFog(member, request);
+          await snapshots(member.roomId);
+          return null;
+        }),
+    );
+    socket.on(
+      'panel:duplicate',
+      (id, ack) =>
+        void run(ack, async () => {
+          await game.duplicatePanel(member, id);
+          await snapshots(member.roomId);
+          return null;
+        }),
+    );
+    socket.on(
+      'panel:remove',
+      (id, ack) =>
+        void run(ack, async () => {
+          await game.removePanel(member, id);
+          await snapshots(member.roomId);
+          return null;
+        }),
+    );
+    socket.on(
+      'panel:reorder',
+      (ids, ack) =>
+        void run(ack, async () => {
+          await game.reorderPanels(member, ids);
+          await snapshots(member.roomId);
+          return null;
+        }),
+    );
+    socket.on('disconnect', () => {
+      void presence(member.roomId).catch(() => undefined);
+    });
     try {
       socket.emit('room:snapshot', await game.snapshot(member, members(member.roomId)));
-      io.to(channel(member.roomId)).emit('room:presence', members(member.roomId));
+      await presence(member.roomId);
     } catch {
       socket.disconnect(true);
     }

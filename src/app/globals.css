@@ -7,6 +7,239 @@
   --font-display: var(--font-pixelify-sans);
 }
 
+.character-portrait {
+  image-rendering: pixelated;
+  display: block;
+  flex-shrink: 0;
+}
+.character-gate {
+  min-height: 100dvh;
+  padding: 24px;
+  background: var(--paper);
+}
+.character-gate-nav {
+  max-width: 920px;
+  margin: 0 auto 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.character-gate-card {
+  max-width: 540px;
+  margin: auto;
+  padding: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.character-gate-card h1 {
+  font-size: 42px;
+  margin-top: 8px;
+}
+.character-gate-card > .tables-link {
+  display: inline-flex;
+  margin-top: 24px;
+}
+.character-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--leaf);
+}
+.character-preview strong {
+  font-family: var(--font-display);
+  font-size: 24px;
+}
+.character-preview span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.character-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.character-fields label {
+  min-width: 0;
+  font-size: 13px;
+}
+.character-creator .form-error {
+  margin-bottom: 16px;
+}
+.character-hud {
+  position: absolute;
+  top: 80px;
+  left: 25px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 12px 4px 4px;
+  z-index: 2;
+  font-size: 12px;
+  pointer-events: none;
+}
+.character-hud button {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--leaf);
+  border: 0;
+  border-radius: 4px;
+  min-height: 44px;
+  padding: 4px;
+}
+.movement-pad {
+  position: absolute;
+  left: 25px;
+  bottom: 64px;
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  gap: 4px;
+}
+.movement-pad button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.movement-pad button:first-child {
+  grid-column: 2;
+}
+.movement-pad button:nth-child(2) {
+  grid-column: 1;
+}
+.movement-pad button:active {
+  background: var(--leaf);
+}
+.scene-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.scene-row .scene-item {
+  flex: 1;
+  min-width: 0;
+}
+.scene-row .scene-item > span:nth-child(2) {
+  min-width: 0;
+}
+.scene-row .scene-item strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+.scene-order-controls {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.scene-manage-actions {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  align-items: center;
+}
+.scene-manage-actions > .button {
+  flex: 1;
+}
+.dice-tray {
+  position: absolute;
+  z-index: 4;
+  right: 16px;
+  top: 80px;
+  width: 320px;
+  max-width: calc(100% - 32px);
+  max-height: calc(100% - 96px);
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px #17302430;
+}
+.dice-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.dice-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 25px;
+}
+.dice-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.dice-fields label {
+  min-width: 0;
+}
+.dice-fields input,
+.dice-fields select {
+  padding: 0 8px;
+}
+.dice-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 12px;
+}
+.dice-history {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+}
+.dice-history li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.dice-history li div {
+  display: flex;
+  flex-direction: column;
+}
+.dice-history li span,
+.dice-history li small {
+  color: var(--muted);
+  font-size: 12px;
+}
+.dice-history b {
+  font-family: var(--font-display);
+  font-size: 32px;
+}
+.sprite-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+}
+.sprite-options .button {
+  font-size: 12px;
+  min-height: 44px;
+  padding: 6px 12px;
+}
+
 :root {
   --paper: #f8f9f4;
   --surface: #fff;
@@ -34,7 +267,7 @@ body {
 }
 button,
 input,
-select {
+.select-trigger {
   font: inherit;
 }
 button,
@@ -66,7 +299,7 @@ canvas:focus-visible {
   outline-offset: 3px;
 }
 input,
-select {
+.select-trigger {
   width: 100%;
   height: 46px;
   background: #fff;
@@ -83,7 +316,7 @@ input::placeholder {
   font-size: 13px;
 }
 input:hover,
-select:hover {
+.select-trigger:hover {
   border-color: #a8b7a0;
 }
 input[type='checkbox'] {
@@ -91,6 +324,136 @@ input[type='checkbox'] {
   width: 15px;
   height: 15px;
   flex-shrink: 0;
+}
+.select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  min-width: 0;
+}
+.select-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.select-trigger > svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.select-trigger:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.select-content {
+  z-index: 60;
+  min-width: var(--radix-select-trigger-width);
+  max-width: calc(100vw - 24px);
+  max-height: var(--radix-select-content-available-height);
+  overflow: hidden;
+  background: #fcfdf9;
+  color: var(--ink);
+  border: 1px solid #d8dfd1;
+  border-radius: 9px;
+  box-shadow: 0 8px 30px #172d2a25;
+  font-size: 14px;
+}
+.select-viewport {
+  padding: 4px;
+}
+.select-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 32px 8px 10px;
+  border-radius: 5px;
+  outline: none;
+  cursor: default;
+  user-select: none;
+}
+.select-item[data-highlighted] {
+  background: #e5eddd;
+  color: var(--forest);
+}
+.select-item[data-disabled] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.select-indicator {
+  position: absolute;
+  right: 10px;
+  display: flex;
+}
+.select-scroll {
+  display: flex;
+  justify-content: center;
+  padding: 4px;
+}
+.member-avatar[aria-pressed='true'] {
+  outline: 2px solid #c7a34d;
+  outline-offset: 2px;
+}
+.gm-scene-controls {
+  position: relative;
+  order: 2;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin: 0 25px 10px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 50px);
+  padding: 7px 10px;
+  background: #fcfdf9ed;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.gm-scene-controls span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gm-scene-controls button {
+  display: flex;
+  padding: 3px;
+  background: transparent;
+  border: 0;
+  min-width: 32px;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 700px) {
+  .gm-scene-controls {
+    margin: 0 12px 8px;
+    max-width: calc(100% - 24px);
+  }
+  .gm-scene-controls button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+.map-workspace .character-hud {
+  position: relative;
+  top: auto;
+  left: auto;
+  order: 1;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin: 0 25px 8px;
+  max-width: calc(100% - 50px);
+}
+@media (max-width: 700px) {
+  .map-workspace .character-hud {
+    margin: 0 12px 8px;
+    max-width: calc(100% - 24px);
+  }
 }
 label {
   display: flex;
@@ -1027,10 +1390,9 @@ h2 {
   background-size: 12px 12px;
 }
 .map-top-tools {
-  position: absolute;
-  top: 20px;
-  left: 25px;
-  right: 25px;
+  position: relative;
+  flex-shrink: 0;
+  margin: 20px 25px 10px;
   z-index: 2;
   display: flex;
   justify-content: space-between;
@@ -1080,6 +1442,7 @@ h2 {
 }
 .canvas-area {
   position: relative;
+  order: 3;
   flex: 1;
   min-height: 160px;
 }
@@ -1135,6 +1498,7 @@ h2 {
   margin: 0 3px;
 }
 .brush-dock {
+  order: 4;
   align-self: center;
   z-index: 2;
   background: #fcfdf9;
@@ -1167,18 +1531,80 @@ h2 {
   display: flex;
   gap: 7px;
   justify-content: space-between;
+  overflow-x: auto;
+  padding: 2px;
 }
 .terrain-palette button {
   border: 1px solid #e1e6d9;
   border-radius: 6px;
   padding: 6px 8px 4px;
   background: #f5f7f0;
-  min-width: 0;
+  min-width: 48px;
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+}
+
+.member-avatar {
+  border: 0;
+  padding: 0;
+}
+.member-avatar:disabled {
+  opacity: 1;
+}
+.self-avatar {
+  padding: 0;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.tool-switch {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.tool-switch button {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .character-gate {
+    padding: 16px;
+  }
+  .character-gate-card {
+    padding: 24px 16px;
+  }
+  .character-gate-card h1 {
+    font-size: 36px;
+  }
+  .character-fields select,
+  .dice-fields select,
+  .dice-fields input {
+    font-size: 16px;
+  }
+  .map-top-tools .role-tag {
+    display: none;
+  }
+  .map-top-tools .tool-switch {
+    width: 100%;
+  }
+  .character-hud {
+    left: 12px;
+    top: 78px;
+    max-width: calc(100% - 24px);
+  }
+  .movement-pad {
+    left: 12px;
+    bottom: 60px;
+  }
+  .scene-order-controls button,
+  .scene-manage-actions .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 .terrain-palette button[aria-pressed='true'] {
   border-color: #829f67;
@@ -1220,6 +1646,7 @@ h2 {
   color: #6c865a;
 }
 .player-view-note {
+  order: 5;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1669,9 +2096,7 @@ a {
     padding: 5px;
   }
   .map-top-tools {
-    top: 13px;
-    left: 15px;
-    right: 15px;
+    margin: 13px 12px 10px;
   }
   .role-tag {
     font-size: 11px;

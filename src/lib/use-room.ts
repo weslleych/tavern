@@ -9,6 +9,11 @@ import type {
   ServerEvents,
   Snapshot,
   Tile,
+  CharacterAppearance,
+  MoveRequest,
+  SpawnRequest,
+  DiceRequest,
+  FogRequest,
 } from '../types/game';
 
 export function useRoom(code: string) {
@@ -58,7 +63,37 @@ export function useRoom(code: string) {
         }
       });
       connection.on('room:presence', (members) =>
-        setSnapshot((previous) => (previous ? { ...previous, members } : previous)),
+        setSnapshot((previous) =>
+          previous
+            ? {
+                ...previous,
+                members,
+                you: members.find((member) => member.id === previous.you.id) || previous.you,
+              }
+            : previous,
+        ),
+      );
+      connection.on('token:moved', (update) =>
+        setSnapshot((previous) => {
+          if (!previous) return previous;
+          const replace = (member: typeof previous.you) =>
+            member.id === update.memberId ? { ...member, token: update.token } : member;
+          return {
+            ...previous,
+            members: previous.members.map(replace),
+            you: replace(previous.you),
+          };
+        }),
+      );
+      connection.on('dice:rolled', (roll) =>
+        setSnapshot((previous) =>
+          previous
+            ? {
+                ...previous,
+                rolls: [...previous.rolls.filter((item) => item.id !== roll.id), roll].slice(-20),
+              }
+            : previous,
+        ),
       );
       connection.on('tile:updated', (update) =>
         setSnapshot((previous) => {
@@ -99,6 +134,7 @@ export function useRoom(code: string) {
 
   async function perform<T>(
     action: (connection: Socket<ServerEvents, ClientEvents>) => Promise<Reply<T>>,
+    quietMovement = false,
   ): Promise<boolean> {
     if (!socket.current?.connected || status !== 'Connected') {
       setError('Wait for the table to reconnect before editing.');
@@ -107,7 +143,10 @@ export function useRoom(code: string) {
     setPending((value) => value + 1);
     try {
       const result = await action(socket.current);
-      if (!result.ok) throw new Error(result.error);
+      if (!result.ok) {
+        if (quietMovement && result.code === 'MOVE_REJECTED') return false;
+        throw new Error(result.error);
+      }
       setError('');
       return true;
     } catch (error) {
@@ -152,5 +191,23 @@ export function useRoom(code: string) {
       perform((connection) => connection.timeout(10000).emitWithAck('panel:rename', request)),
     importPanel: (request: unknown) =>
       perform((connection) => connection.timeout(10000).emitWithAck('panel:import', request)),
+    updateCharacter: (request: CharacterAppearance) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('character:update', request)),
+    moveToken: (request: MoveRequest) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('token:move', request), true),
+    setMovement: (allowed: boolean) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('room:movement', { allowed })),
+    setSpawn: (request: SpawnRequest) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('panel:spawn', request)),
+    rollDice: (request: DiceRequest) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('dice:roll', request)),
+    updateFog: (request: FogRequest) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('fog:update', request)),
+    duplicatePanel: (id: string) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('panel:duplicate', id)),
+    removePanel: (id: string) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('panel:remove', id)),
+    reorderPanels: (ids: string[]) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('panel:reorder', ids)),
   };
 }

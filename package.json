@@ -19,6 +19,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@radix-ui/react-select": "^2.3.7",
     "@tailwindcss/postcss": "^4.3.3",
     "dotenv": "^17.2.3",
     "lucide-react": "^0.577.0",
