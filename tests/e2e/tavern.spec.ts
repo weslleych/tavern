@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { recordMapView, readMapView } from './helpers/map-view';
 
 async function choose(page: import('@playwright/test').Page, label: string, option: string) {
   await page.getByRole('combobox', { name: label, exact: true }).click();
@@ -7,20 +8,20 @@ async function choose(page: import('@playwright/test').Page, label: string, opti
 }
 
 async function tilePoint(page: import('@playwright/test').Page, x: number, y = 0) {
+  await page.evaluate(recordMapView);
   await page.getByRole('button', { name: 'Fit map to view' }).click();
-  await page.evaluate(
-    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-  );
+  const camera = await readMapView(page);
   const b = (await page.getByLabel('Map canvas').boundingBox())!;
-  const zoom = Math.max(0.2, Math.min(2, (b.width - 80) / 832, (b.height - 80) / 576));
   return {
-    x: b.x + (b.width - 832 * zoom) / 2 + (x + 0.5) * 32 * zoom,
-    y: b.y + (b.height - 576 * zoom) / 2 + (y + 0.5) * 32 * zoom,
+    x: b.x + camera.x + (x + 0.5) * 32 * camera.zoom,
+    y: b.y + camera.y + (y + 0.5) * 32 * camera.zoom,
   };
 }
 
 async function finishCharacter(page: import('@playwright/test').Page) {
-  await expect(page.getByRole('heading', { name: 'Meet your adventurer' })).toBeVisible();
+  await page.evaluate(recordMapView);
+  await expect(page.getByRole('heading', { name: 'Choose your Archetype' })).toBeVisible();
+  await page.getByRole('button', { name: 'Next: Appearance' }).click();
   await page.getByRole('button', { name: 'Enter tabletop' }).click();
   await expect(page.getByLabel('Map canvas')).toBeVisible();
 }
@@ -153,17 +154,11 @@ test('a fast brush stroke paints every tile between pointer samples', async ({ p
   await page.getByRole('button', { name: 'Create a table', exact: true }).click();
   await expect(page.getByTestId('connection-status')).toHaveText('Connected');
   await expect(page.getByLabel('Map canvas')).toBeVisible();
-  await page.getByRole('button', { name: 'Fit map to view' }).click();
-  await page.evaluate(
-    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-  );
-  const bounds = (await page.getByLabel('Map canvas').boundingBox())!;
-  const zoom = Math.max(0.2, Math.min(2, (bounds.width - 80) / 832, (bounds.height - 80) / 576));
-  const left = bounds.x + (bounds.width - 832 * zoom) / 2;
-  const top = bounds.y + (bounds.height - 576 * zoom) / 2;
-  await page.mouse.move(left + 2.5 * 32 * zoom, top + 8.5 * 32 * zoom);
+  const from = await tilePoint(page, 2, 8),
+    to = await tilePoint(page, 8, 8);
+  await page.mouse.move(from.x, from.y);
   await page.mouse.down();
-  await page.mouse.move(left + 8.5 * 32 * zoom, top + 8.5 * 32 * zoom, { steps: 1 });
+  await page.mouse.move(to.x, to.y, { steps: 1 });
   await page.mouse.up();
   await expect(page.getByTestId('tile-count')).toHaveText('7 tiles');
 });
@@ -203,9 +198,11 @@ test('GM coordinates players, movement permissions and spawn; player character, 
   await player.getByRole('button', { name: 'Join adventure' }).click();
   const playerSocket = await socketReady;
   await expect(player.getByLabel('Map canvas')).toHaveCount(0);
+  await player.getByRole('button', { name: 'Next: Appearance' }).click();
   await choose(player, 'Hair style', 'Braids');
   await player.screenshot({ path: 'artifacts/phase4-creator.png', fullPage: true });
-  await finishCharacter(player);
+  await player.getByRole('button', { name: 'Enter tabletop' }).click();
+  await expect(player.getByLabel('Map canvas')).toBeVisible();
   await expect(player.getByTestId('token-position')).toContainText('4, 1');
   await player.getByRole('button', { name: 'Edit your character', exact: true }).click();
   await expect(player.getByRole('combobox', { name: 'Hair style' })).toHaveText('Braids');
@@ -309,6 +306,19 @@ test('GM coordinates players, movement permissions and spawn; player character, 
   expect(await player.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
     true,
   );
+  const hint = (await player.locator('.player-view-note').boundingBox())!;
+  for (const selector of ['.zoom-controls', '.movement-pad']) {
+    const controls = (await player.locator(selector).boundingBox())!;
+    const overlapWidth = Math.max(
+      0,
+      Math.min(hint.x + hint.width, controls.x + controls.width) - Math.max(hint.x, controls.x),
+    );
+    const overlapHeight = Math.max(
+      0,
+      Math.min(hint.y + hint.height, controls.y + controls.height) - Math.max(hint.y, controls.y),
+    );
+    expect(overlapWidth * overlapHeight).toBe(0);
+  }
   await player.screenshot({ path: 'artifacts/phase4-player-mobile.png', fullPage: true });
   await gmContext.close();
   await playerContext.close();
@@ -362,12 +372,9 @@ test('custom PNG brushes render and export; fog reveal/hide supports keyboard an
     .poll(() =>
       player.getByLabel('Map canvas').evaluate((canvas: HTMLCanvasElement) => {
         const bounds = canvas.getBoundingClientRect();
-        const zoom = Math.max(
-          0.2,
-          Math.min(2, (bounds.width - 80) / 832, (bounds.height - 80) / 576),
-        );
-        const x = (bounds.width - 832 * zoom) / 2 + 4.5 * 32 * zoom,
-          y = (bounds.height - 576 * zoom) / 2 + 4.5 * 32 * zoom;
+        const camera = JSON.parse(canvas.dataset.view!);
+        const x = camera.x + 4.5 * 32 * camera.zoom,
+          y = camera.y + 4.5 * 32 * camera.zoom;
         return Array.from(
           canvas
             .getContext('2d')!

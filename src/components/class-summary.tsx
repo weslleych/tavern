@@ -30,7 +30,14 @@ export function ClassSummary({
               <abbr title={name}>{abbreviation}</abbr>
               <span>{name}</span>
             </dt>
-            <dd data-testid={`attribute-${id}`}>{signedModifier(attributes[id])}</dd>
+            <dd
+              className={
+                attributes[id] > 0 ? 'positive' : attributes[id] < 0 ? 'negative' : undefined
+              }
+              data-testid={`attribute-${id}`}
+            >
+              {signedModifier(attributes[id])}
+            </dd>
           </div>
         ))}
       </dl>

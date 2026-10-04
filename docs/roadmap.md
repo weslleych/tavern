@@ -75,6 +75,35 @@ Detailed technical specifications and architecture: [validated dice system plan]
 
 Detailed specifications and verification: [attribute system plan](attribute_system_plan.md). GM catalog editing works before creation and during play; deleted selections are cleared without losing appearance or token position. Attribute bonuses and labels are derived by the server, and history retains the bonus originally applied. All 48 unit/integration tests and 14 browser tests pass, along with lint, TypeScript, formatting, and production build. Live MongoDB integration remains an optional check requiring `MONGODB_TEST_URI`, which was not configured for this verification.
 
+## Phase 6: Guided class onboarding & party archetype visual presence — implemented
+
+- [x] Card-based visual presentation of GM-defined classes with attribute modifier highlights, lore, and narrative traits.
+- [x] Guided two-step onboarding flow for players entering the table: Step 1 (Class & Subclass Archetype) → Step 2 (Adventurer Appearance & Pixel Art).
+- [x] Subclass selection chips and quick-spec cards for specialization choices under each class.
+- [x] Member class and subclass badges in the party sidebar and character HUD.
+- [x] Tabbed character customization modal inside the tabletop for seamless appearance editing and class re-speccing.
+- [x] Graceful fallback for empty class catalogs, allowing freeform entry when the GM defines no classes.
+
+Detailed specifications and implementation plan: [class selection & onboarding plan](class_selection_plan.md).
+
+## Phase 7: Large map editor ergonomics & floating HUD overlay — implemented
+
+- [x] Persistent camera zoom and pan coordinates when toggling tools (Paint, Pan, Move) on large grids (e.g. 64×64).
+- [x] Floating terrain palette (`.brush-dock`) bottom overlay with backdrop blur to eliminate canvas resizing during terrain painting.
+- [x] Fluid right-click hold-and-drag panning during Paint mode (and all editing tools) without manual tool switching.
+- [x] Non-intrusive floating top HUD overlays: mode switcher, player token info ("Select a player to move"), and GM scene controls ("Players can move freely", spawn point) hovering directly over the canvas with pass-through clicks.
+- [x] Window and dice-sidebar resizes preserve zoom and the world point at the viewport center; zero-sized layouts preserve initialized state.
+- [x] Scene changes fit the new scene; initial/explicit Fit accounts for actual visible overlay bounds.
+- [x] Right-drag leaves painting, fog, spawn, token selection, and movement untouched; ordinary left input still works.
+- [x] Buttons stay interactive while HUD labels and toolbar gaps pass through to painting and token dragging.
+- [x] Mobile toolbar/palette stay within the workspace at 760px, 600px, and 390px, with reachable terrain, zoom, and dice controls.
+- [x] Mobile movement hints remain readable without overlapping zoom or direction controls.
+- [x] Domain/integration and browser suites, type checking, lint, formatting, and production build pass.
+
+Detailed specifications and implementation plan: [map editor UX plan](map_editor_ux_plan.md).
+
+Phases 6 and 7 were completed in order. Final verification passes all 49 domain/integration tests and 20 browser tests, TypeScript, lint, formatting, and production build. Dedicated regressions cover 64×64 camera persistence, overlay clearance/pass-through, right-drag with no game mutations, scene refitting, and mobile controls/hints.
+
 ## Operational follow-ups
 
 - [ ] GM recovery or role transfer.

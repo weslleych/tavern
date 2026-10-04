@@ -3,6 +3,7 @@ import type {
   AttributeModifiers,
   CharacterClass,
   CharacterSubclass,
+  CharacterAppearance,
 } from '../types/game';
 
 export const attributeDefinitions: AttributeDefinition[] = [
@@ -46,6 +47,16 @@ export function findClassSelection(
 }
 
 export const signedModifier = (value: number) => `${value >= 0 ? '+' : ''}${value}`;
+
+export function characterClassTitle(
+  classes: CharacterClass[],
+  character?: Pick<CharacterAppearance, 'classId' | 'subclassId'>,
+): string | undefined {
+  const characterClass = classes.find((item) => item.id === character?.classId);
+  if (!characterClass) return undefined;
+  const subclass = characterClass.subclasses.find((item) => item.id === character?.subclassId);
+  return subclass ? `${characterClass.name} · ${subclass.name}` : characterClass.name;
+}
 
 function preset(
   id: string,

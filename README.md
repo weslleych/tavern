@@ -20,14 +20,14 @@ Open [localhost:3000](http://localhost:3000). No database setup is needed: maps 
 - Create a table as its GM, join by code or invite, and return from the same browser.
 - Create, rename, order, duplicate, and remove scenes; keep 1–30 per table and switch the whole party between them.
 - Paint nine terrain types, erase, and mark blocked tiles on configurable 5–64 column/row maps; add optional PNG sprites.
-- Pan, zoom, fit, and paint with mouse, touch, or keyboard.
+- Pan, zoom, fit, and paint with mouse, touch, or keyboard. Floating map controls preserve the canvas area, and zoom/focus persist across tool changes and resizes.
 - Start with an empty canvas or a generated woodland clearing.
 - See live party presence, confirmed map edits, and automatic reconnect.
 - Retain the GM role after refresh and server restart.
 - Persist with MongoDB or local storage; export/import scenes as versioned JSON.
 - Use responsive layouts, native dialogs, shadcn/Radix selects, visible focus, and reduced-motion support.
 - As a player, create a modular pixel character per table, then edit your appearance from your portrait. The GM coordinates without a character.
-- Configure room classes and subclasses as GM during creation or live play; players choose their class alongside their appearance and see summed attributes and descriptive buffs/debuffs.
+- Configure room classes and subclasses as GM during creation or live play; players explore archetype cards, choose a specialization, then customize their appearance. Edit either through character tabs and see party class titles, summed attributes, and descriptive buffs/debuffs.
 - Roll one-click attribute checks with server-calculated class/subclass bonuses and labeled results in the shared party log.
 - As GM, allow/pause player movement, reposition selected players, and mark a preferred spawn per scene.
 - Spawn near the preferred point (first free tile when unset) and move with WASD, arrows, adjacent clicks, token drops, or touch controls; the server enforces collisions.
@@ -42,7 +42,7 @@ Private session credentials live in browser local storage. **Keep the GM's brows
 | -------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Paint          | Click or drag; `B` selects the brush                                                                                 |
 | Select terrain | `1`–`9`, then `0` for Flowers                                                                                        |
-| Pan            | Hand tool (`H`), Alt-drag, or middle-button drag                                                                     |
+| Pan            | Hand tool (`H`), Alt-drag, or right-/middle-button drag with any tool                                                |
 | Zoom           | Scroll, `+` / `−`, or viewport buttons                                                                               |
 | Keyboard paint | Focus the canvas, use arrows, then Enter or Space                                                                    |
 | Move character | Move tool (`M`); focused canvas WASD/arrows, adjacent click, one-step token drop, or direction buttons               |

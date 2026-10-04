@@ -28,6 +28,7 @@ async function enterTable(page: Page, credential: Credential) {
   await page.goto('/room/' + credential.roomCode);
   await expect(page.getByTestId('connection-status')).toHaveText('Connected');
   if (credential.role === 'player') {
+    await page.getByRole('button', { name: 'Next: Appearance' }).click();
     await page.getByRole('button', { name: 'Enter tabletop' }).click();
   }
   await expect(page.getByLabel('Map canvas')).toBeVisible();

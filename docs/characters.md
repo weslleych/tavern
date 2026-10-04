@@ -7,12 +7,17 @@ flowchart TD
     Join[Join or Create Room] --> Role{GM or player?}
     Role -->|GM: no character or token| Tabletop
     Role -->|Player| Check{Character saved?}
-    Check -->|Yes: No character saved| Creator[Character Creator Screen]
-    Check -->|No: Character exists| Tabletop[Tabletop View]
+    Check -->|No| Classes{Room has classes?}
+    Check -->|Yes| Tabletop[Tabletop View]
+    Classes -->|Yes| Archetype[Choose class and specialization cards]
+    Classes -->|Empty catalog| Creator[Customize appearance]
+    Archetype --> Creator
+    Creator -->|Back: preserve choices| Archetype
     Creator -->|Confirm & Save| Spawn[Spawn near preferred point or first free tile]
     Spawn --> Tabletop
     Tabletop -->|WASD / Arrow keys| Move[Move token with collision checks]
-    Tabletop -->|Click portrait| Creator
+    Tabletop -->|Click portrait| Editor[Appearance and Class tabs]
+    Editor -->|Save| Tabletop
 ```
 
 ---
@@ -20,8 +25,8 @@ flowchart TD
 ## 1. Principles & room scoping
 
 1. **Per-room scoping**: Characters belong to the individual table session. A player can have a distinct character in each room they join. The character configuration is persisted with the member session in storage (`.tavern/store.json` and MongoDB).
-2. **First-visit creation gate**: A player joining a room without a saved character sees the creator before the map. The GM coordinates the table without a character or token and opens the tabletop directly. Confirming saves the character and unlocks the tabletop, even if an empty/full scene has no free spawn tile yet.
-3. **Always editable**: Players can reopen the creator modal from their portrait in the navigation, party list, or map HUD. Updating appearance preserves a valid position.
+2. **First-visit creation gate**: A player joining a room without a saved character first explores the GM's class cards, signed modifiers, narrative traits, and optional specialization cards, then customizes appearance. “No class” supports freeform play; an empty catalog bypasses archetypes. Back preserves choices. The GM opens the tabletop directly. Confirming saves the character and unlocks the tabletop, even if an empty/full scene has no free spawn tile yet.
+3. **Always editable**: Players reopen the creator modal from their portrait in the navigation, party list, or map HUD and switch between Appearance and Class & Specialization tabs. Native radio groups and tab arrow keys support keyboard navigation. Updating appearance preserves a valid position. Party rows and the player's HUD display current class/subclass titles. See the [class selection plan](class_selection_plan.md).
 4. **Deterministic spawn**: Newly created player characters spawn on the free walkable tile nearest the scene's **preferred spawn point**. The GM marks it with the flag tool and can clear it. Without a preference, use the first free tile in row-major order.
 5. **Direct keyboard & pointer movement**: Characters navigate the map using **WASD** or **Arrow keys**, respecting tile collisions (`blocked: true`), fog, scene boundaries, and the GM's room-wide movement permission (enabled by default). The GM can move any player to a valid free tile regardless of adjacency, fog or this permission.
 
@@ -57,6 +62,8 @@ export interface CharacterAppearance {
   shirtStyle: number;
   shirtColor: string;
   pantsColor: string;
+  classId?: string;
+  subclassId?: string;
 }
 
 export interface PlayerToken {

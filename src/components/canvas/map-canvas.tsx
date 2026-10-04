@@ -54,6 +54,7 @@ export function MapCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<HTMLCanvasElement | null>(null);
   const size = useRef({ width: 0, height: 0 });
+  const initialized = useRef(false);
   const hover = useRef<{ x: number; y: number } | null>(null);
   const stroke = useRef(new Set<string>());
   const drag = useRef<{
@@ -106,15 +107,35 @@ export function MapCanvas({
     });
   }, []);
   const fit = useCallback(() => {
+    if (size.current.width === 0 || size.current.height === 0) return;
+    initialized.current = true;
     const width = panel.grid.cols * 32,
       height = panel.grid.rows * 32;
+    // Fit within the space between visible overlays. Read their bounds only on an
+    // explicit/initial fit; changing tools never changes the user's camera.
+    const workspace = canvasRef.current?.closest('.map-workspace');
+    const bounds = canvasRef.current?.getBoundingClientRect();
+    let top = 72,
+      bottom = 48;
+    if (workspace && bounds) {
+      for (const overlay of workspace.querySelectorAll('.map-top-tools, .map-hud-stack')) {
+        const rect = overlay.getBoundingClientRect();
+        if (rect.height > 0) top = Math.max(top, rect.bottom - bounds.top + 8);
+      }
+      for (const overlay of workspace.querySelectorAll(
+        '.brush-dock, .player-view-note, .zoom-controls',
+      )) {
+        const rect = overlay.getBoundingClientRect();
+        if (rect.height > 0) bottom = Math.max(bottom, bounds.bottom - rect.top + 8);
+      }
+    }
     const zoom = Math.max(
       0.2,
-      Math.min(2, (size.current.width - 80) / width, (size.current.height - 80) / height),
+      Math.min(2, (size.current.width - 80) / width, (size.current.height - top - bottom) / height),
     );
     setCamera({
       x: (size.current.width - width * zoom) / 2,
-      y: (size.current.height - height * zoom) / 2,
+      y: top + (size.current.height - top - bottom - height * zoom) / 2,
       zoom,
     });
   }, [panel.grid.cols, panel.grid.rows]);
@@ -124,11 +145,19 @@ export function MapCanvas({
     if (!canvas) return;
     const observer = new ResizeObserver((entries) => {
       const { width, height } = entries[0].contentRect;
+      if (width === 0 || height === 0) return;
+      const previous = size.current;
       size.current = { width, height };
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = width * ratio;
       canvas.height = height * ratio;
-      fit();
+      if (!initialized.current) fit();
+      else {
+        const dx = (width - previous.width) / 2,
+          dy = (height - previous.height) / 2;
+        if (dx !== 0 || dy !== 0)
+          setCamera((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
+      }
       schedule();
     });
     observer.observe(canvas);
@@ -346,15 +375,19 @@ export function MapCanvas({
     }
   }
   function pointerDown(event: PointerEvent<HTMLCanvasElement>) {
-    if (event.button !== 0 && event.button !== 1) return;
+    if (event.button !== 0 && event.button !== 1 && event.button !== 2) return;
     event.currentTarget.focus();
     event.currentTarget.setPointerCapture(event.pointerId);
     stroke.current.clear();
     const pan =
-      tool === 'pan' || event.button === 1 || (tool !== 'move' && !canEdit) || event.altKey;
+      tool === 'pan' ||
+      event.button === 1 ||
+      event.button === 2 ||
+      (tool !== 'move' && !canEdit) ||
+      event.altKey;
     const cell = cellAt(event);
     const hit =
-      tool === 'move' && cell
+      !pan && tool === 'move' && cell
         ? members.find(
             (member) =>
               member.role === 'player' &&
@@ -448,6 +481,7 @@ export function MapCanvas({
         className={tool === 'pan' ? 'map-canvas pan-cursor' : 'map-canvas'}
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
+        onContextMenu={(event) => event.preventDefault()}
         onPointerUp={(event) => {
           const start = drag.current;
           if (
@@ -461,7 +495,7 @@ export function MapCanvas({
             const cell = cellAt(event);
             if (cell) void onSpawn(cell);
           }
-          void flushFog();
+          if (start && !start.pan) void flushFog();
           drag.current = null;
           stroke.current.clear();
         }}
@@ -538,7 +572,8 @@ export function MapCanvas({
             : canEdit
               ? 'Drag to paint. Alt-drag or use the Hand tool to pan. Arrow keys select a tile; Enter paints it.'
               : 'Drag to pan. Your game master controls the map.'}{' '}
-        Scroll or use plus and minus to zoom. Keyboard tile {cursor.x + 1}, {cursor.y + 1}.
+        Hold the right or middle mouse button and drag to pan with any tool. Scroll or use plus and
+        minus to zoom. Keyboard tile {cursor.x + 1}, {cursor.y + 1}.
       </p>
     </div>
   );

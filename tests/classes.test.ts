@@ -6,6 +6,7 @@ import {
   calculateAttributes,
   findClassSelection,
   calculateTraits,
+  characterClassTitle,
 } from '../src/lib/classes';
 import { classesSchema, characterSchema, diceSchema } from '../src/lib/validation';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -15,6 +16,25 @@ import { GameService } from '../src/server/game';
 import { FileStore } from '../src/server/store';
 import { defaultAppearance } from '../src/lib/characters';
 import type { Room } from '../src/types/game';
+
+test('party titles resolve current room names and omit missing class or specialization IDs', () => {
+  assert.equal(characterClassTitle(defaultClasses), undefined);
+  assert.equal(characterClassTitle([], { classId: 'guerreiro' }), undefined);
+  assert.equal(characterClassTitle(defaultClasses, { classId: 'missing' }), undefined);
+  assert.equal(characterClassTitle(defaultClasses, { classId: 'guerreiro' }), 'Guerreiro');
+  assert.equal(
+    characterClassTitle(defaultClasses, { classId: 'guerreiro', subclassId: 'guardiao' }),
+    'Guerreiro · Guardião',
+  );
+  assert.equal(
+    characterClassTitle(defaultClasses, { classId: 'guerreiro', subclassId: 'arcanista' }),
+    'Guerreiro',
+  );
+  assert.equal(
+    characterClassTitle([{ ...defaultClasses[0], name: 'Sentinela' }], { classId: 'guerreiro' }),
+    'Sentinela',
+  );
+});
 
 async function fixture(t: test.TestContext) {
   const directory = await mkdtemp(join(tmpdir(), 'tavern-classes-'));

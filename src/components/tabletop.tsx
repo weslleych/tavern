@@ -46,6 +46,7 @@ import { MapCanvas } from './canvas/map-canvas';
 import { drawTile } from './canvas/render';
 import { terrainInfo } from '../lib/terrain';
 import { useRoom } from '../lib/use-room';
+import { characterClassTitle } from '../lib/classes';
 import { useMediaQuery } from '../lib/use-media-query';
 import { importSchema, readableError, spriteSchema } from '../lib/validation';
 import { terrains, type Terrain, type MapTool } from '../types/game';
@@ -261,7 +262,7 @@ export function Tabletop({ code }: { code: string }) {
         </div>
         <section className="character-gate-card">
           <span className="eyebrow">{snapshot.room.name}</span>
-          <h1>Meet your adventurer</h1>
+          <h1>Create your adventurer</h1>
           <CharacterCreator
             classes={snapshot.room.classes}
             nickname={snapshot.you.nickname}
@@ -471,6 +472,12 @@ export function Tabletop({ code }: { code: string }) {
                       {member.id === snapshot.you.id && <small> (you)</small>}
                     </strong>
                     <small>{member.role === 'gm' ? 'Game master' : 'Player'}</small>
+                    {member.role === 'player' &&
+                      characterClassTitle(snapshot.room.classes, member.character) && (
+                        <small className="member-class-title">
+                          {characterClassTitle(snapshot.room.classes, member.character)}
+                        </small>
+                      )}
                   </span>
                   {member.role === 'gm' && <Crown size={15} className="crown" />}
                 </li>
@@ -719,44 +726,55 @@ export function Tabletop({ code }: { code: string }) {
                 room.updateFog({ panelId: snapshot.panel.id, cells, revealed })
               }
             />
-            <div className="character-hud">
-              {!isGM && snapshot.you.character && (
-                <button aria-label="Customize character" onClick={() => setDialog('character')}>
-                  <CharacterPortrait appearance={snapshot.you.character} size={32} />
-                  <UserRound size={14} />
-                </button>
-              )}
-              {isGM && <Crown size={16} />}
-              <span data-testid="token-position" role="status">
-                {isGM
-                  ? selectedPlayer?.token
-                    ? `${selectedPlayer.nickname} · Position ${selectedPlayer.token.x + 1}, ${selectedPlayer.token.y + 1}`
-                    : 'Select a player to move'
-                  : snapshot.you.token
-                    ? `Position ${snapshot.you.token.x + 1}, ${snapshot.you.token.y + 1}`
-                    : 'Waiting for a free tile'}
-              </span>
-            </div>
-            {isGM && (
-              <div className="gm-scene-controls">
-                <span>{playersCanMove ? 'Players can move freely' : 'Player movement paused'}</span>
-                <span data-testid="spawn-position">
-                  <Flag size={13} />{' '}
-                  {snapshot.panel.spawnPoint
-                    ? `Spawn ${snapshot.panel.spawnPoint.x + 1}, ${snapshot.panel.spawnPoint.y + 1}`
-                    : 'No preferred spawn'}
-                </span>
-                {snapshot.panel.spawnPoint && (
-                  <button
-                    disabled={!canEdit}
-                    aria-label="Clear spawn point"
-                    onClick={() => void room.setSpawn({ panelId: snapshot.panel.id, point: null })}
-                  >
-                    <X size={14} />
+            <div className="map-hud-stack">
+              <div className="character-hud">
+                {!isGM && snapshot.you.character && (
+                  <button aria-label="Customize character" onClick={() => setDialog('character')}>
+                    <CharacterPortrait appearance={snapshot.you.character} size={32} />
+                    <UserRound size={14} />
                   </button>
                 )}
+                {isGM && <Crown size={16} />}
+                <span data-testid="token-position" role="status">
+                  {isGM
+                    ? selectedPlayer?.token
+                      ? `${selectedPlayer.nickname} · Position ${selectedPlayer.token.x + 1}, ${selectedPlayer.token.y + 1}`
+                      : 'Select a player to move'
+                    : snapshot.you.token
+                      ? `Position ${snapshot.you.token.x + 1}, ${snapshot.you.token.y + 1}`
+                      : 'Waiting for a free tile'}
+                </span>
+                {!isGM && characterClassTitle(snapshot.room.classes, snapshot.you.character) && (
+                  <span className="member-class-title">
+                    {characterClassTitle(snapshot.room.classes, snapshot.you.character)}
+                  </span>
+                )}
               </div>
-            )}
+              {isGM && (
+                <div className="gm-scene-controls">
+                  <span>
+                    {playersCanMove ? 'Players can move freely' : 'Player movement paused'}
+                  </span>
+                  <span data-testid="spawn-position">
+                    <Flag size={13} />{' '}
+                    {snapshot.panel.spawnPoint
+                      ? `Spawn ${snapshot.panel.spawnPoint.x + 1}, ${snapshot.panel.spawnPoint.y + 1}`
+                      : 'No preferred spawn'}
+                  </span>
+                  {snapshot.panel.spawnPoint && (
+                    <button
+                      disabled={!canEdit}
+                      aria-label="Clear spawn point"
+                      onClick={() =>
+                        void room.setSpawn({ panelId: snapshot.panel.id, point: null })
+                      }
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             {isGM && tool === 'paint' && (
               <div className="brush-dock">
                 <div className="brush-heading">
@@ -943,7 +961,8 @@ export function Tabletop({ code }: { code: string }) {
                 <div>
                   <dt>Pan</dt>
                   <dd>
-                    Choose the Hand tool (H), hold Alt and drag, or use the middle mouse button.
+                    Choose the Hand tool (H), hold Alt and drag, or hold the right or middle mouse
+                    button and drag with any tool.
                   </dd>
                 </div>
                 <div>
