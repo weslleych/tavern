@@ -24,6 +24,7 @@ async function fixture(options: ConstructorParameters<typeof GameService>[1] = {
   const playerCredential = await game.join({ code: credential.roomCode, nickname: 'Hero' });
   const player = await game.authenticate(playerCredential);
   await game.updateCharacter(player, defaultAppearance);
+  game.setOnlineMembers(gm.roomId, [gm, player]);
   const panel = (await game.snapshot(gm)).panel;
   return {
     game,
@@ -299,7 +300,7 @@ test('reviving a monster cannot overlap a player standing on its defeated token'
   }
 });
 
-test('initiative sorts totals then dexterity then stable IDs; each round rerolls and rejects stale actors', async () => {
+test('initiative sorts totals then dexterity then stable IDs and preserves the order across rounds', async () => {
   assert.deepEqual(
     sortInitiative([
       { id: 'z', type: 'player', name: 'Z', initiative: 10, dexterityModifier: 1 },
@@ -323,6 +324,7 @@ test('initiative sorts totals then dexterity then stable IDs; each round rerolls
     });
     await f.game.startCombat(f.gm, { panelId: f.panel.id, monsterId: m.id });
     const started = (await f.game.snapshot(f.gm)).room.activeCombat!;
+    await f.game.rollCombatInitiative(f.player, { combatId: started.id, round: started.round });
     assert.equal(started.turnQueue[0].id, m.id);
     assert.equal(started.turnQueue[0].initiative, 13);
     await assert.rejects(f.game.nextCombatTurn(f.player), /turn/i);
@@ -330,7 +332,10 @@ test('initiative sorts totals then dexterity then stable IDs; each round rerolls
     await f.game.nextCombatTurn(f.player);
     const next = await f.game.snapshot(f.gm);
     assert.equal(next.room.activeCombat?.round, 2);
-    assert.equal(next.rolls.filter((r) => r.sides === 20).length, 4);
+    assert.equal(next.room.activeCombat?.status, 'active');
+    assert.equal(next.room.activeCombat?.turnQueue[0].id, m.id);
+    assert.equal(next.room.activeCombat?.turnQueue[0].initiative, 13);
+    assert.equal(next.rolls.filter((r) => r.sides === 20).length, 2);
   } finally {
     await f.close();
   }
@@ -351,6 +356,8 @@ test('combat damage uses persisted class/subclass modifiers, logs trusted actors
       y: 4,
     });
     await f.game.startCombat(f.gm, { panelId: f.panel.id, monsterId: m.id });
+    const combat = (await f.game.snapshot(f.gm)).room.activeCombat!;
+    await f.game.rollCombatInitiative(f.player, { combatId: combat.id, round: 1 });
     await f.game.executeMonsterAttack(f.gm, {
       targetMemberId: f.player.id,
       damageNotation: '1d12',
@@ -509,11 +516,13 @@ test('legacy default classes gain thematic attacks while custom classes keep the
 test('every initiative roll is published after commit even when a large party exceeds the 20-record history cap', async () => {
   const f = await fixture();
   try {
+    const players = [f.player];
     for (let index = 0; index < 20; index++) {
       const member = await f.game.authenticate(
         await f.game.join({ code: f.credential.roomCode, nickname: `Hero ${index}` }),
       );
       await f.game.updateCharacter(member, defaultAppearance);
+      players.push(member);
     }
     await f.game.paint(f.gm, {
       panelId: f.panel.id,
@@ -527,7 +536,11 @@ test('every initiative roll is published after commit even when a large party ex
     });
     const rolls: unknown[] = [];
     f.game.events.on('diceRolls', ({ rolls: batch }) => rolls.push(...batch));
+    f.game.setOnlineMembers(f.gm.roomId, [f.gm, ...players]);
     await f.game.startCombat(f.gm, { panelId: f.panel.id, monsterId: m.id });
+    const combat = (await f.game.snapshot(f.gm)).room.activeCombat!;
+    for (const player of players)
+      await f.game.rollCombatInitiative(player, { combatId: combat.id, round: 1 });
     assert.equal(rolls.length, 22);
     assert.equal((await f.game.snapshot(f.gm)).rolls.length, 20);
   } finally {
@@ -695,6 +708,8 @@ test('combat is opt-in, rejects out-of-turn actors and forged attacks, preserves
       /master/i,
     );
     await f.game.startCombat(f.gm, { panelId: f.panel.id, monsterId: monster.id });
+    const pendingCombat = (await f.game.snapshot(f.gm)).room.activeCombat!;
+    await f.game.rollCombatInitiative(f.player, { combatId: pendingCombat.id, round: 1 });
     const started = (await f.game.snapshot(f.gm, [f.gm, f.player])).room.activeCombat!;
     assert.equal(started.round, 1);
     assert.equal(started.turnQueue.length, 2);

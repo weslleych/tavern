@@ -1,4 +1,4 @@
-import { expect, type Page, type APIRequestContext } from '@playwright/test';
+import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
 import { io } from 'socket.io-client';
 import type { Credential, Snapshot } from '../../../src/types/game';
 import { recordMapView, readMapView } from './map-view';
@@ -43,7 +43,7 @@ export async function clickTile(page: Page, x: number, y: number) {
   );
 }
 export async function connectMaster(credential: Credential) {
-  const socket = io('http://127.0.0.1:3100', {
+  const socket = io(test.info().project.use.baseURL ?? 'http://127.0.0.1:3100', {
     auth: credential,
     transports: ['websocket'],
     autoConnect: false,

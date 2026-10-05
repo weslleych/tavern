@@ -119,7 +119,7 @@ test('failed HTTP deletion and combat writes return errors without teardown or p
     );
     assert.equal(await f.game.roomExists(f.gm.roomCode), true);
     assert.equal((await f.game.snapshot(f.actor)).room.activeCombat, null);
-    assert.deepEqual(events, []);
+    assert.equal(events.length, 0);
     f.store.save = save;
     const rolls: unknown[] = [];
     f.guest.on('dice:rolled', (roll) => rolls.push(roll));
@@ -132,7 +132,20 @@ test('failed HTTP deletion and combat writes return errors without teardown or p
       ).ok,
       true,
     );
-    await snapshot;
+    const waiting = (await snapshot).room.activeCombat!;
+    assert.equal(waiting.status, 'initiative');
+    assert.equal(rolls.length, 1);
+    assert.equal(events.includes('combat'), false);
+    const activated = receive<Snapshot>(f.guest, 'room:snapshot');
+    assert.equal(
+      (
+        await f.guest
+          .timeout(2000)
+          .emitWithAck('combat:initiative', { combatId: waiting.id, round: 1 })
+      ).ok,
+      true,
+    );
+    assert.equal((await activated).room.activeCombat!.status, 'active');
     assert.equal(rolls.length, 2);
     const left = receive(f.guest, 'session:ended');
     assert.equal((await f.guest.timeout(2000).emitWithAck('room:leave')).ok, true);
@@ -295,7 +308,18 @@ test('socket monsters send personalized snapshots, combat restores, and HTTP del
       ).ok,
       true,
     );
-    const combat = (await arena).room.activeCombat!;
+    const waiting = (await arena).room.activeCombat!;
+    assert.equal(waiting.status, 'initiative');
+    const activated = receive<Snapshot>(guest, 'room:snapshot');
+    assert.equal(
+      (
+        await guest
+          .timeout(2000)
+          .emitWithAck('combat:initiative', { combatId: waiting.id, round: 1 })
+      ).ok,
+      true,
+    );
+    const combat = (await activated).room.activeCombat!;
     assert.equal(combat.turnQueue.length, 2);
     assert.equal(JSON.stringify(combat).includes('maxHp'), false);
     guest.disconnect();

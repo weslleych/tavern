@@ -2,7 +2,14 @@ import { Server } from 'socket.io';
 import type { Server as HttpServer } from 'node:http';
 import { MoveRejected, RoomNotFound, Unauthorized, type GameService } from './game';
 import type { Session } from './store';
-import type { Ack, ClientEvents, DiceRoll, Member, ServerEvents } from '../types/game';
+import type {
+  Ack,
+  ClientEvents,
+  DiceRoll,
+  Member,
+  PublicCombatState,
+  ServerEvents,
+} from '../types/game';
 import { readableError } from '../lib/validation';
 
 interface SocketData {
@@ -50,6 +57,10 @@ export function attachGateway(server: HttpServer, game: GameService) {
     for (const roll of rolls) io.to(channel(roomId)).emit('dice:rolled', roll);
   };
   game.events.on('diceRolls', onDiceRolls);
+  const onCombatStarted = ({ roomId, combat }: { roomId: string; combat: PublicCombatState }) => {
+    io.to(channel(roomId)).emit('combat:started', { combat });
+  };
+  game.events.on('combatStarted', onCombatStarted);
   let expiring = false;
   const expiryTimer = setInterval(() => {
     if (expiring) return;
@@ -73,6 +84,7 @@ export function attachGateway(server: HttpServer, game: GameService) {
     game.events.off('roomDeleted', onDeleted);
     game.events.off('poiUnlinked', onUnlinked);
     game.events.off('diceRolls', onDiceRolls);
+    game.events.off('combatStarted', onCombatStarted);
   });
   async function snapshots(roomId: string) {
     const online = members(roomId);
@@ -84,6 +96,7 @@ export function attachGateway(server: HttpServer, game: GameService) {
   }
   async function presence(roomId: string) {
     const online = members(roomId);
+    if (await game.refreshCombatInitiative(roomId)) await snapshots(roomId);
     for (const socket of io.sockets.sockets.values()) {
       if (socket.data.member?.roomId === roomId && socket.rooms.has(channel(roomId))) {
         const view = await game.snapshot(socket.data.member, online);
@@ -319,21 +332,10 @@ export function attachGateway(server: HttpServer, game: GameService) {
     socket.on('disconnect', () => {
       void presence(member.roomId).catch(() => undefined);
     });
-    const update = async (action: () => Promise<unknown>, combat = false) => {
+    const update = async (action: () => Promise<unknown>) => {
       const before = await game.snapshot(member, members(member.roomId));
       await action();
       const after = await game.snapshot(member, members(member.roomId));
-      if (combat && !before.room.activeCombat && after.room.activeCombat) {
-        for (const recipient of io.sockets.sockets.values())
-          if (
-            recipient.data.member?.roomId === member.roomId &&
-            recipient.rooms.has(channel(member.roomId))
-          )
-            recipient.emit('combat:started', {
-              combat: (await game.snapshot(recipient.data.member, members(member.roomId))).room
-                .activeCombat!,
-            });
-      }
       if (before.room.travelVote && !after.room.travelVote && before.panel.id === after.panel.id)
         io.to(channel(member.roomId)).emit('poi:cancelled', { reason: 'declined' });
       if (before.room.activeCombat && !after.room.activeCombat)
@@ -392,26 +394,28 @@ export function attachGateway(server: HttpServer, game: GameService) {
     );
     socket.on(
       'combat:start',
-      (request, ack) => void run(ack, () => update(() => game.startCombat(member, request), true)),
+      (request, ack) => void run(ack, () => update(() => game.startCombat(member, request))),
+    );
+    socket.on(
+      'combat:initiative',
+      (request, ack) =>
+        void run(ack, () => update(() => game.rollCombatInitiative(member, request))),
     );
     socket.on(
       'combat:attack_player',
       (request, ack) =>
-        void run(ack, () => update(() => game.executePlayerAttack(member, request), true)),
+        void run(ack, () => update(() => game.executePlayerAttack(member, request))),
     );
     socket.on(
       'combat:attack_monster',
       (request, ack) =>
-        void run(ack, () => update(() => game.executeMonsterAttack(member, request), true)),
+        void run(ack, () => update(() => game.executeMonsterAttack(member, request))),
     );
     socket.on(
       'combat:next_turn',
-      (ack) => void run(ack, () => update(() => game.nextCombatTurn(member), true)),
+      (ack) => void run(ack, () => update(() => game.nextCombatTurn(member))),
     );
-    socket.on(
-      'combat:end',
-      (ack) => void run(ack, () => update(() => game.endCombat(member), true)),
-    );
+    socket.on('combat:end', (ack) => void run(ack, () => update(() => game.endCombat(member))));
     socket.on(
       'room:delete',
       (ack) =>

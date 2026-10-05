@@ -45,8 +45,8 @@ interface Props {
   onFog: (cells: { x: number; y: number }[], revealed: boolean) => Promise<boolean>;
   structureKey?: string;
   onPlaceStructure?: (cell: { x: number; y: number }) => Promise<boolean>;
-  onInspectStructure?: (id: string) => void;
-  onInspectMonster?: (id: string) => void;
+  onInspectStructure?: (id: string, point: { x: number; y: number }) => void;
+  onInspectMonster?: (id: string, point: { x: number; y: number }) => void;
   onSummon?: (cell: { x: number; y: number }) => Promise<boolean>;
   onMoveMonster?: (request: MonsterMoveRequest) => Promise<boolean>;
 }
@@ -373,7 +373,9 @@ export function MapCanvas({
     structureTemplate,
   ]);
 
-  const cellAt = (event: PointerEvent<HTMLCanvasElement>) => {
+  const cellAt = (
+    event: Pick<PointerEvent<HTMLCanvasElement>, 'clientX' | 'clientY' | 'currentTarget'>,
+  ) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const x = Math.floor((event.clientX - rect.left - camera.x) / camera.zoom / 32);
     const y = Math.floor((event.clientY - rect.top - camera.y) / camera.zoom / 32);
@@ -492,7 +494,12 @@ export function MapCanvas({
     const anchor =
       !pan && tool === 'move' && canEdit && cell
         ? panel.structures?.find(
-            (s) => cell.x >= s.x && cell.y >= s.y && cell.x < s.x + s.cols && cell.y < s.y + s.rows,
+            (s) =>
+              s.templateKey.startsWith('poi_') &&
+              cell.x >= s.x &&
+              cell.y >= s.y &&
+              cell.x < s.x + s.cols &&
+              cell.y < s.y + s.rows,
           )
         : undefined;
     drag.current = {
@@ -563,6 +570,36 @@ export function MapCanvas({
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       stroke.current.clear();
+      const cell = hover.current || cursor;
+      const monster =
+        canEdit && tool === 'move' && panel.monsters?.find((m) => m.x === cell.x && m.y === cell.y);
+      if (monster) {
+        const bounds = event.currentTarget.getBoundingClientRect();
+        onInspectMonster?.(monster.id, {
+          x: bounds.x + bounds.width / 2,
+          y: bounds.y + bounds.height / 2,
+        });
+        return;
+      }
+      const poi =
+        canEdit &&
+        tool === 'move' &&
+        panel.structures?.find(
+          (s) =>
+            s.templateKey.startsWith('poi_') &&
+            cell.x >= s.x &&
+            cell.y >= s.y &&
+            cell.x < s.x + s.cols &&
+            cell.y < s.y + s.rows,
+        );
+      if (poi) {
+        const bounds = event.currentTarget.getBoundingClientRect();
+        onInspectStructure?.(poi.id, {
+          x: bounds.x + bounds.width / 2,
+          y: bounds.y + bounds.height / 2,
+        });
+        return;
+      }
       if (tool === 'spawn' && canEdit) void onSpawn(hover.current || cursor);
       else if (tool === 'summon' && canEdit) void onSummon?.(hover.current || cursor);
       else paint(hover.current || cursor);
@@ -581,7 +618,28 @@ export function MapCanvas({
         className={tool === 'pan' ? 'map-canvas pan-cursor' : 'map-canvas'}
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
-        onContextMenu={(event) => event.preventDefault()}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          const cell = cellAt(event);
+          const monster =
+            canEdit && cell && panel.monsters?.find((m) => m.x === cell.x && m.y === cell.y);
+          if (monster) {
+            onInspectMonster?.(monster.id, { x: event.clientX, y: event.clientY });
+            return;
+          }
+          const poi =
+            canEdit &&
+            cell &&
+            panel.structures?.find(
+              (s) =>
+                s.templateKey.startsWith('poi_') &&
+                cell.x >= s.x &&
+                cell.y >= s.y &&
+                cell.x < s.x + s.cols &&
+                cell.y < s.y + s.rows,
+            );
+          if (poi) onInspectStructure?.(poi.id, { x: event.clientX, y: event.clientY });
+        }}
         onPointerUp={(event) => {
           const start = drag.current;
           const cell = cellAt(event);
@@ -591,7 +649,7 @@ export function MapCanvas({
               cell?.y === start.cell?.y &&
               Math.hypot(event.clientX - start.x, event.clientY - start.y) < 8
             )
-              onInspectMonster?.(start.monsterId);
+              onInspectMonster?.(start.monsterId, { x: event.clientX, y: event.clientY });
             else if (cell)
               void onMoveMonster?.({ ...cell, panelId: panel.id, monsterId: start.monsterId });
           } else if (
@@ -602,7 +660,7 @@ export function MapCanvas({
             canEdit &&
             Math.hypot(event.clientX - start.x, event.clientY - start.y) < 8
           )
-            onInspectStructure?.(start.structureId);
+            onInspectStructure?.(start.structureId, { x: event.clientX, y: event.clientY });
           if (
             start &&
             !start.pan &&

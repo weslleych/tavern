@@ -7,6 +7,7 @@ import type {
   PlayerAttackRequest,
   MonsterAttackRequest,
   DiceRequest,
+  CombatInitiativeRequest,
 } from '../types/game';
 import { calculateAttributes, findClassSelection, characterClassTitle } from '../lib/classes';
 import { classAttack, combatBackdrop, defaultAttacks } from '../lib/combat';
@@ -29,6 +30,7 @@ export function CombatArena({
   onNext,
   onEnd,
   onRoll,
+  onInitiative,
 }: {
   snapshot: Snapshot;
   busy: boolean;
@@ -40,6 +42,7 @@ export function CombatArena({
   onNext: () => Promise<boolean>;
   onEnd: () => Promise<boolean>;
   onRoll: (r: DiceRequest) => Promise<boolean>;
+  onInitiative: (r: CombatInitiativeRequest) => Promise<boolean>;
 }) {
   const t = useTranslations(),
     formatError = useErrorMessage(),
@@ -114,6 +117,13 @@ export function CombatArena({
   }, []);
   if (!monster) return null;
   const resolved = combat.status === 'resolved';
+  const collectingInitiative = combat.status === 'initiative';
+  const living = party.filter(
+    (m) => (m.health?.current ?? 0) > 0 && snapshot.members.some((online) => online.id === m.id),
+  );
+  const ready = living.filter((m) => combat.turnQueue.some((turn) => turn.id === m.id));
+  const yourRoll = combat.turnQueue.find((turn) => turn.id === snapshot.you.id);
+  const canRollInitiative = !isGM && living.some((m) => m.id === snapshot.you.id) && !yourRoll;
   return (
     <dialog
       ref={ref}
@@ -131,7 +141,9 @@ export function CombatArena({
             {combat.turnQueue.map((participant, index) => (
               <li
                 key={participant.id}
-                aria-current={!resolved && index === combat.turnIndex ? 'step' : undefined}
+                aria-current={
+                  combat.status === 'active' && index === combat.turnIndex ? 'step' : undefined
+                }
               >
                 <span>{participant.type === 'monster' ? name(monster) : participant.name}</span>
                 <b>{participant.initiative}</b>
@@ -180,7 +192,40 @@ export function CombatArena({
             )}
           </article>
         </div>
-        {resolved ? (
+        {collectingInitiative ? (
+          <section className="combat-initiative" aria-labelledby="initiative-title">
+            <h2 id="initiative-title">{t('combat.initiativeTitle')}</h2>
+            <p>{t('combat.initiativeHint')}</p>
+            <p role="status">
+              {t('combat.initiativeProgress', { ready: ready.length, total: living.length })}
+            </p>
+            <ul className="initiative-checklist">
+              {living.map((member) => {
+                const roll = combat.turnQueue.find((turn) => turn.id === member.id);
+                return (
+                  <li key={member.id}>
+                    <strong>{member.nickname}</strong>
+                    <span>
+                      {roll
+                        ? t('combat.initiativeReady', { total: roll.initiative })
+                        : t('combat.initiativePending')}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+            {canRollInitiative && (
+              <button
+                className="button primary"
+                disabled={busy}
+                onClick={() => void onInitiative({ combatId: combat.id, round: combat.round })}
+              >
+                {t('combat.rollInitiative')}
+              </button>
+            )}
+            {yourRoll && <p>{t('combat.initiativeRolled', { total: yourRoll.initiative })}</p>}
+          </section>
+        ) : resolved ? (
           <div className="combat-resolution" role="status">
             <h2>{t(monster.defeated ? 'combat.victory' : 'combat.defeat')}</h2>
             {isGM && (

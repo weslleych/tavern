@@ -241,7 +241,7 @@ test('right-drag over a player never selects or moves them; left-drag moves thei
 }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   const gm = await create(page, request);
-  const master = io('http://127.0.0.1:3100', {
+  const master = io(test.info().project.use.baseURL ?? 'http://127.0.0.1:3100', {
     auth: gm,
     transports: ['websocket'],
     autoConnect: false,
@@ -249,7 +249,7 @@ test('right-drag over a player never selects or moves them; left-drag moves thei
   const joined = await request.post('/api/rooms/join', {
     data: { code: gm.roomCode, nickname: 'Robo' },
   });
-  const player = io('http://127.0.0.1:3100', {
+  const player = io(test.info().project.use.baseURL ?? 'http://127.0.0.1:3100', {
     auth: (await joined.json()).data,
     transports: ['websocket'],
     autoConnect: false,

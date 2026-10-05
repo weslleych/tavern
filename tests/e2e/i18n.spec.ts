@@ -40,7 +40,9 @@ test('request headers negotiate supported languages and localize missing routes'
     await expect(page.locator('html')).toHaveAttribute('lang', 'es');
     await page.goto('/missing-trail');
     await expect(page.getByRole('heading', { name: 'Un camino poco transitado.' })).toBeVisible();
-    await context.addCookies([{ name: 'NEXT_LOCALE', value: 'en', url: 'http://127.0.0.1:3100' }]);
+    await context.addCookies([
+      { name: 'NEXT_LOCALE', value: 'en', url: test.info().project.use.baseURL! },
+    ]);
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   } finally {

@@ -27,6 +27,7 @@ import type {
   MonsterReference,
   PlayerAttackRequest,
   MonsterAttackRequest,
+  CombatInitiativeRequest,
 } from '../types/game';
 
 export function useRoom(code: string) {
@@ -72,8 +73,19 @@ export function useRoom(code: string) {
     const checkSavedSession = () => {
       if (connection && !hasSavedSession(code)) returnToHub('left');
     };
+    const goOffline = () => {
+      if (!active || !connection) return;
+      connection.disconnect();
+      queuedPaint.clear();
+      setStatus('Reconnecting');
+    };
+    const goOnline = () => {
+      if (active) connection?.connect();
+    };
     window.addEventListener('storage', checkSavedSession);
     window.addEventListener('tavern:tables-changed', checkSavedSession);
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online', goOnline);
     Promise.resolve().then(() => {
       if (!active) return;
       const credential = sessionFor(code);
@@ -82,7 +94,12 @@ export function useRoom(code: string) {
         setError('Ask your game master for the table code, then join with your nickname.');
         return;
       }
-      connection = io({ auth: credential, transports: ['websocket', 'polling'] });
+      connection = io({
+        auth: credential,
+        transports: ['websocket', 'polling'],
+        autoConnect: navigator.onLine,
+      });
+      if (!navigator.onLine) setStatus('Reconnecting');
       socket.current = connection;
       connection.on('room:snapshot', (data) => {
         if (current.current?.room.activeCombat && !data.room.activeCombat)
@@ -190,6 +207,8 @@ export function useRoom(code: string) {
       active = false;
       window.removeEventListener('storage', checkSavedSession);
       window.removeEventListener('tavern:tables-changed', checkSavedSession);
+      window.removeEventListener('offline', goOffline);
+      window.removeEventListener('online', goOnline);
       connection?.disconnect();
       socket.current = null;
       if (paintTimer.current) clearTimeout(paintTimer.current);
@@ -287,6 +306,8 @@ export function useRoom(code: string) {
       perform((connection) => connection.timeout(10000).emitWithAck('monster:remove', request)),
     startCombat: (request: MonsterReference) =>
       perform((connection) => connection.timeout(10000).emitWithAck('combat:start', request)),
+    rollInitiative: (request: CombatInitiativeRequest) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('combat:initiative', request)),
     playerAttack: (request: PlayerAttackRequest) =>
       perform((connection) =>
         connection.timeout(10000).emitWithAck('combat:attack_player', request),

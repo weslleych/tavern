@@ -42,6 +42,7 @@ import {
   monsterReferenceSchema,
   playerAttackSchema,
   monsterAttackSchema,
+  combatInitiativeSchema,
 } from '../lib/validation';
 import {
   defaultClasses,
@@ -151,6 +152,15 @@ export class GameService {
         batches.set(roomId, rolls);
       }
       for (const [roomId, rolls] of batches) this.events.emit('diceRolls', { roomId, rolls });
+      for (const room of next.rooms) {
+        const before = previous.rooms.find((r) => r.id === room.id)?.activeCombat;
+        if (
+          before?.status === 'initiative' &&
+          room.activeCombat?.status === 'active' &&
+          room.activeCombat.round === 1
+        )
+          this.events.emit('combatStarted', { roomId: room.id, combat: room.activeCombat });
+      }
       return result;
     });
     this.queue = run.catch(() => undefined);
@@ -1144,27 +1154,9 @@ export class GameService {
         (!room.activeCombat || room.activeCombat.partyIds.includes(s.id)),
     );
   }
-  private rollInitiative(state: StoredGame, room: Room) {
+  private beginInitiative(state: StoredGame, room: Room) {
     const combat = room.activeCombat!,
       monster = this.monster(state, room, combat.panelId, combat.monsterId);
-    const queue: import('../types/game').CombatParticipant[] = this.livingParty(state, room).map(
-      (session) => {
-        const dexterityModifier = this.playerModifiers(session, room).destreza;
-        const roll = this.recordRoll(room, session, {
-          sides: 20,
-          count: 1,
-          modifier: dexterityModifier,
-          label: `Initiative (Round ${combat.round})`,
-        });
-        return {
-          id: session.id,
-          type: 'player' as const,
-          name: session.nickname,
-          initiative: roll.total,
-          dexterityModifier,
-        };
-      },
-    );
     const gm = state.sessions.find((s) => s.id === room.gmId)!;
     const roll = this.recordRoll(
       room,
@@ -1176,15 +1168,83 @@ export class GameService {
         label: `Initiative (Round ${combat.round})`,
       },
     );
-    queue.push({
-      id: monster.id,
-      type: 'monster',
-      name: monster.name,
-      initiative: roll.total,
-      dexterityModifier: monster.attributes.destreza,
-    });
-    combat.turnQueue = sortInitiative(queue);
+    combat.turnQueue = [
+      {
+        id: monster.id,
+        type: 'monster',
+        name: monster.name,
+        initiative: roll.total,
+        dexterityModifier: monster.attributes.destreza,
+      },
+    ];
     combat.turnIndex = 0;
+    combat.status = 'initiative';
+    delete combat.lastAction;
+  }
+  private completeInitiative(state: StoredGame, room: Room) {
+    const combat = room.activeCombat!;
+    const living = this.initiativeParty(state, room);
+    combat.turnQueue = combat.turnQueue.filter(
+      (turn) =>
+        turn.type === 'monster' || this.livingParty(state, room).some((s) => s.id === turn.id),
+    );
+    if (living.length && living.every((s) => combat.turnQueue.some((turn) => turn.id === s.id))) {
+      combat.turnQueue = sortInitiative(combat.turnQueue);
+      combat.turnIndex = 0;
+      combat.status = 'active';
+    }
+  }
+  private initiativeParty(state: StoredGame, room: Room) {
+    const online = this.online.get(room.id) ?? [];
+    return this.livingParty(state, room).filter((s) => online.includes(s.id));
+  }
+  async refreshCombatInitiative(roomId: string) {
+    await this.queue;
+    const state = await this.data;
+    const room = state.rooms.find((r) => r.id === roomId);
+    const combat = room?.activeCombat;
+    if (!room || combat?.status !== 'initiative') return false;
+    const living = this.initiativeParty(state, room);
+    const allReady =
+      living.length > 0 && living.every((s) => combat.turnQueue.some((turn) => turn.id === s.id));
+    if (!allReady) return false;
+    return this.mutate((state) => {
+      const room = state.rooms.find((r) => r.id === roomId);
+      if (room?.activeCombat?.status !== 'initiative') return false;
+      this.skipIncapacitated(state, room);
+      return true;
+    });
+  }
+  async rollCombatInitiative(member: Session, input: unknown) {
+    const request = combatInitiativeSchema.parse(input);
+    return this.mutate((state) => {
+      const actor = this.session(state, member),
+        room = this.roomFor(state, actor);
+      const combat = room.activeCombat;
+      if (!combat || combat.id !== request.combatId || combat.round !== request.round)
+        throw new Error('Choose the current encounter and initiative round.');
+      if (actor.role !== 'player') throw new Error('Only players roll their own initiative.');
+      if (!this.initiativeParty(state, room).some((s) => s.id === actor.id))
+        throw new Error('Choose a conscious adventurer in this encounter.');
+      if (combat.turnQueue.some((turn) => turn.id === actor.id))
+        throw new Error('You already rolled initiative for this combat.');
+      if (combat.status !== 'initiative') throw new Error('Wait for the initiative phase.');
+      const dexterityModifier = this.playerModifiers(actor, room).destreza;
+      const roll = this.recordRoll(room, actor, {
+        sides: 20,
+        count: 1,
+        modifier: dexterityModifier,
+        label: `Initiative (Round ${combat.round})`,
+      });
+      combat.turnQueue.push({
+        id: actor.id,
+        type: 'player',
+        name: actor.nickname,
+        initiative: roll.total,
+        dexterityModifier,
+      });
+      this.completeInitiative(state, room);
+    });
   }
   async startCombat(member: Session, input: unknown) {
     const request = monsterReferenceSchema.parse(input);
@@ -1207,19 +1267,25 @@ export class GameService {
         round: 1,
         turnIndex: 0,
         turnQueue: [],
-        status: 'active',
+        status: 'initiative',
         partyIds: party.map((s) => s.id),
       };
-      this.rollInitiative(state, room);
+      this.beginInitiative(state, room);
     });
   }
   private skipIncapacitated(state: StoredGame, room: Room) {
     const combat = room.activeCombat;
     if (!combat || combat.status === 'resolved') return;
     const monster = this.monster(state, room, combat.panelId, combat.monsterId);
-    const living = this.livingParty(state, room);
+    const living = this.livingParty(state, room).filter(
+      (s) => combat.status === 'initiative' || combat.turnQueue.some((turn) => turn.id === s.id),
+    );
     if (monster.currentHp === 0 || !living.length) {
       combat.status = 'resolved';
+      return;
+    }
+    if (combat.status === 'initiative') {
+      this.completeInitiative(state, room);
       return;
     }
     while (combat.turnIndex < combat.turnQueue.length) {
@@ -1228,7 +1294,8 @@ export class GameService {
       combat.turnIndex++;
     }
     combat.round++;
-    this.rollInitiative(state, room);
+    combat.turnIndex = 0;
+    this.skipIncapacitated(state, room);
   }
   private combatTurn(state: StoredGame, room: Room, actor: Session, type?: 'player' | 'monster') {
     const combat = room.activeCombat;

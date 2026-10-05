@@ -120,6 +120,7 @@ export function PoiLinkModal({
   error,
   onSave,
   onClose,
+  action = 'link',
 }: {
   anchor: StructureAnchor;
   panelId: string;
@@ -128,6 +129,7 @@ export function PoiLinkModal({
   error: string;
   onSave: (request: PoiConfiguration) => Promise<boolean>;
   onClose: () => void;
+  action?: 'link' | 'town' | 'dungeon';
 }) {
   const t = useTranslations(),
     formatError = useErrorMessage(),
@@ -147,11 +149,23 @@ export function PoiLinkModal({
       onClose();
   }
   return (
-    <Modal title={t('world.linkTitle')} onClose={onClose}>
+    <Modal
+      title={t(
+        action === 'link'
+          ? 'world.linkTitle'
+          : action === 'town'
+            ? 'world.createLinkedTown'
+            : 'world.createLinkedDungeon',
+      )}
+      onClose={onClose}
+    >
+      <p className="modal-description">
+        {t(action === 'link' ? 'world.linkHint' : 'world.createLinkHint')}
+      </p>
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          void save();
+          void save(action === 'link' ? undefined : action);
         }}
       >
         <label>
@@ -164,50 +178,37 @@ export function PoiLinkModal({
             onChange={(event) => setName(event.target.value)}
           />
         </label>
-        <label>
-          {t('world.destination')}
-          <FormSelect
-            label={t('world.destination')}
-            value={target}
-            onValueChange={setTarget}
-            disabled={busy}
-            options={[
-              { value: '__none', label: t('world.unlinked') },
-              ...panels
-                .filter((p) => p.id !== panelId)
-                .map((p) => ({ value: p.id, label: p.name })),
-            ]}
-          />
-        </label>
+        {action === 'link' && (
+          <label>
+            {t('world.destination')}
+            <FormSelect
+              label={t('world.destination')}
+              value={target}
+              onValueChange={setTarget}
+              disabled={busy}
+              options={[
+                { value: '__none', label: t('world.unlinked') },
+                ...panels
+                  .filter((p) => p.id !== panelId)
+                  .map((p) => ({ value: p.id, label: p.name })),
+              ]}
+            />
+          </label>
+        )}
         {error && (
           <p role="alert" className="form-error">
             {formatError(error)}
           </p>
         )}
-        <div className="template-actions">
-          <button
-            className="button secondary"
-            type="button"
-            disabled={busy || !name.trim() || panels.length >= 30}
-            onClick={() => void save('town')}
-          >
-            {t('world.createTown')}
-          </button>
-          <button
-            className="button secondary"
-            type="button"
-            disabled={busy || !name.trim() || panels.length >= 30}
-            onClick={() => void save('dungeon')}
-          >
-            {t('world.createDungeon')}
-          </button>
-        </div>
         <div className="modal-actions">
           <button className="button secondary" type="button" onClick={onClose}>
             {t('common.cancel')}
           </button>
-          <button className="button primary" disabled={busy}>
-            {t('world.saveLink')}
+          <button
+            className="button primary"
+            disabled={busy || !name.trim() || (action !== 'link' && panels.length >= 30)}
+          >
+            {t(action === 'link' ? 'world.saveLink' : 'world.createAndLink')}
           </button>
         </div>
       </form>

@@ -374,6 +374,9 @@ export const adjustMonsterHpSchema = monsterReferenceSchema
 export const playerAttackSchema = z
   .object({ targetMonsterId: z.string().uuid(), attackId: classIdSchema })
   .strict();
+export const combatInitiativeSchema = z
+  .object({ combatId: z.string().uuid(), round: z.number().int().min(1) })
+  .strict();
 export const monsterAttackSchema = z
   .object({ targetMemberId: z.string().uuid(), damageNotation: attackNotationSchema.optional() })
   .strict();

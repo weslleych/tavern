@@ -638,7 +638,11 @@
     "diceNotation": "Insira uma notação de dados válida.",
     "monsterSprite": "Escolha um sprite PNG de 32 × 32.",
     "monsterHpChange": "Informe uma alteração de PV.",
-    "monsterHpChoice": "Escolha PV atuais ou uma quantidade de dano/cura."
+    "monsterHpChoice": "Escolha PV atuais ou uma quantidade de dano/cura.",
+    "initiativeRound": "Escolha o encontro e a rodada de iniciativa atuais.",
+    "initiativePlayer": "Apenas jogadores rolam sua própria iniciativa.",
+    "initiativeDuplicate": "Você já rolou iniciativa neste combate.",
+    "initiativePhase": "Aguarde a fase de iniciativa."
   },
   "world": {
     "world": "Mundo",
@@ -675,7 +679,16 @@
     "approved": "Mestre aprovou",
     "structures": "Pontos de interesse",
     "summonHint": "Escolha uma célula livre para invocar {name}.",
-    "cancelPlacement": "Cancelar posicionamento"
+    "cancelPlacement": "Cancelar posicionamento",
+    "actionsFor": "Ações de {name}",
+    "linkedTo": "Vinculado a {name}",
+    "linkExisting": "Vincular cena existente",
+    "createLinkedTown": "Criar cidade vinculada",
+    "createLinkedDungeon": "Criar masmorra vinculada",
+    "unlinkScene": "Desvincular cena",
+    "createAndLink": "Criar e vincular cena",
+    "linkHint": "Escolha uma cena de destino para este ponto de interesse.",
+    "createLinkHint": "Crie uma nova cena e vincule a este ponto de interesse. A cena atual continua aberta."
   },
   "lifecycle": {
     "actions": "Ações da campanha",
@@ -729,7 +742,14 @@
     "slime": "Gosma ácida",
     "spider": "Aranha gigante",
     "goblin": "Goblin saqueador",
-    "dragon": "Dragão vermelho jovem"
+    "dragon": "Dragão vermelho jovem",
+    "bestiaryHint": "Escolha uma criatura para invocar e depois selecione um quadrado livre no mapa. Você também pode criar seus próprios monstros.",
+    "emptyCustom": "Nenhum monstro personalizado ainda. Crie um para adicionar ao seu bestiário.",
+    "actionsFor": "Ações de {name}",
+    "details": "Inspecionar monstro",
+    "damage": "Aplicar {amount} de dano",
+    "heal": "Curar {amount} PV",
+    "restoreHp": "Restaurar todos os PV"
   },
   "combat": {
     "arena": "Arena de combate",
@@ -754,6 +774,14 @@
     "basic": "Ataque básico",
     "freeRoll": "Rolagem livre",
     "roll": "Rolar dados",
-    "initiative": "Iniciativa (Rodada {round})"
+    "initiative": "Iniciativa (Rodada {round})",
+    "initiativeTitle": "Role a iniciativa",
+    "initiativeHint": "No início do combate, cada aventureiro online e consciente rola 1d20 + Destreza uma vez. A ordem dos turnos permanece durante toda a luta. O monstro rola automaticamente.",
+    "initiativeProgress": "{ready} de {total} aventureiros prontos",
+    "initiativeReady": "Pronto · {total}",
+    "initiativePending": "Aguardando rolagem",
+    "initiativeOffline": "Offline · aguardando reconexão",
+    "rollInitiative": "Rolar iniciativa",
+    "initiativeRolled": "Sua iniciativa: {total}. Aguardando o grupo."
   }
 }

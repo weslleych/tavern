@@ -37,29 +37,29 @@ Open [localhost:3000](http://localhost:3000). No database setup is needed: maps 
 - Roll shared dice using RPG notation or six quick-roll buttons, with a saved 20-roll sidebar, author badges, individual faces, and a short retro animation. On mobile, open the dice drawer from the toolbar.
 - Reveal/hide terrain with GM-controlled fog of war.
 - Summon eight preset monsters or create custom monsters with attributes, damage formulas and 32×32 PNG sprites. Move them, adjust HP and choose hidden, bar-only or public health.
-- Enter an optional combat arena with terrain backdrops, initiative rerolled each round, editable class attacks, GM target selection, shared dice results and persistent health.
+- Enter an optional combat arena with terrain backdrops, individual player initiative rolls once at the start of each encounter, a fixed turn order across rounds, editable class attacks, GM target selection, shared dice results and persistent health. Turns unlock only after every online, conscious participant rolls.
 - Delete campaigns with a room-code confirmation, leave an active seat, or remove saved tables from the browser.
 
 Private session credentials live in browser local storage. **Keep the GM's browser data:** clearing it removes GM access. Invites grant player access; they never share the GM credential. There are no accounts or recovery flow in this MVP.
 
 ## Controls
 
-| Action         | Control                                                                                                              |
-| -------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Paint          | Click or drag; `B` selects the brush                                                                                 |
-| Select terrain | `1`–`9`, then `0` for Flowers                                                                                        |
-| Palette tabs   | Focus a tab and use left/right arrows; terrain shortcuts return to World                                             |
-| Structures     | Select a building/landmark brush, then click or use arrows + Enter to stamp the full footprint                       |
-| Inspect        | GM Move tool + click a landmark/monster, or use its sidebar inspection button                                        |
-| Summon         | GM opens Bestiary, chooses Summon, then selects a free map tile                                                      |
-| Pan            | Hand tool (`H`), Alt-drag, or right-/middle-button drag with any tool                                                |
-| Zoom           | Scroll, `+` / `−`, or viewport buttons                                                                               |
-| Keyboard paint | Focus the canvas, use arrows, then Enter or Space                                                                    |
-| Move character | Move tool (`M`); focused canvas WASD/arrows, adjacent click, one-step token drop, or direction buttons               |
-| GM controls    | Lock button allows/pauses players; select a player in the party or on the map, then click/drag to reposition         |
-| Spawn          | GM flag tool; click or arrows + Enter to choose a preferred point per scene                                          |
-| Fog            | GM toggles fog, then uses Reveal/Hide tools with drag or keyboard painting                                           |
-| Dice           | Type `d20`, `2d6+3` or `1d12-2` in the dice log and press Enter, or tap a quick die; toggle the log from the toolbar |
+| Action         | Control                                                                                                                          |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Paint          | Click or drag; `B` selects the brush                                                                                             |
+| Select terrain | `1`–`9`, then `0` for Flowers                                                                                                    |
+| Palette tabs   | Focus a tab and use left/right arrows; terrain shortcuts return to World                                                         |
+| Structures     | Select a building/landmark brush, then click or use arrows + Enter to stamp the full footprint                                   |
+| Actions        | GM Move tool + click a landmark/monster, right-click it on the map, or open its sidebar menu; choose Inspect for monster details |
+| Summon         | GM opens Bestiary, chooses Summon, then selects a free map tile                                                                  |
+| Pan            | Hand tool (`H`), Alt-drag, or right-/middle-button drag with any tool                                                            |
+| Zoom           | Scroll, `+` / `−`, or viewport buttons                                                                                           |
+| Keyboard paint | Focus the canvas, use arrows, then Enter or Space                                                                                |
+| Move character | Move tool (`M`); focused canvas WASD/arrows, adjacent click, one-step token drop, or direction buttons                           |
+| GM controls    | Lock button allows/pauses players; select a player in the party or on the map, then click/drag to reposition                     |
+| Spawn          | GM flag tool; click or arrows + Enter to choose a preferred point per scene                                                      |
+| Fog            | GM toggles fog, then uses Reveal/Hide tools with drag or keyboard painting                                                       |
+| Dice           | Type `d20`, `2d6+3` or `1d12-2` in the dice log and press Enter, or tap a quick die; toggle the log from the toolbar             |
 
 Only the GM edits maps, chooses scenes, and controls fog. Players move their own character one tile at a time when the GM permits it, onto non-empty, unblocked, unoccupied revealed terrain. The GM may reposition players at any distance or behind fog, including while movement is paused. Ordinary collision refusals do not display alerts. Empty or full scenes retain the character with no token until a free tile becomes available.
 

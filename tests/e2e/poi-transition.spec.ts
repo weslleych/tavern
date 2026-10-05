@@ -27,10 +27,11 @@ test('categorized palette places a POI, links a scene and requires player consen
     await world.click();
     await page.getByRole('button', { name: 'Walled town', exact: true }).click();
     await clickTile(page, 4, 4);
-    await page.getByRole('button', { name: 'Link Walled town' }).click();
-    const link = page.getByRole('dialog', { name: 'Link point of interest' });
+    await page.getByRole('button', { name: 'Actions for Walled town' }).click();
+    await page.getByRole('menuitem', { name: 'Create linked town scene' }).click();
+    const link = page.getByRole('dialog', { name: 'Create linked town scene' });
     await link.getByLabel('Point of interest name').fill('Guardia');
-    await link.getByRole('button', { name: 'Create town scene' }).click();
+    await link.getByRole('button', { name: 'Create and link scene' }).click();
     await api.socket.timeout(3000).emitWithAck('token:move', {
       panelId: api.snapshot.panel.id,
       memberId: party.player.memberId,

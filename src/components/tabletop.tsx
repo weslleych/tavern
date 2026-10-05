@@ -53,6 +53,8 @@ import { MapCanvas } from './canvas/map-canvas';
 import { blockedTerrains } from '../lib/terrain';
 import { TerrainPalette } from './terrain-palette';
 import { PoiLinkModal, PoiTransitionModal } from './poi-transition-modal';
+import { PoiActionsMenu, type PoiLinkAction } from './poi-actions-menu';
+import { MonsterActionsMenu } from './monster-actions-menu';
 import { CampaignActions, ConfirmDeleteDialog, ConfirmLeaveDialog } from './campaign-actions';
 import {
   BestiaryDrawer,
@@ -83,7 +85,10 @@ export function Tabletop({ code }: { code: string }) {
   const [paletteCategory, setPaletteCategory] = useState<TerrainCategory>('world');
   const [structureKey, setStructureKey] = useState<string>();
   const [poiId, setPoiId] = useState<string>();
+  const [poiAction, setPoiAction] = useState<PoiLinkAction>('link');
+  const [poiMenu, setPoiMenu] = useState<{ id: string; point: { x: number; y: number } }>();
   const [monsterId, setMonsterId] = useState<string>();
+  const [monsterMenu, setMonsterMenu] = useState<{ id: string; point: { x: number; y: number } }>();
   const [bestiaryOpen, setBestiaryOpen] = useState(false);
   const [summonId, setSummonId] = useState<string>();
   const [campaignAction, setCampaignAction] = useState(false);
@@ -136,7 +141,7 @@ export function Tabletop({ code }: { code: string }) {
     function key(event: globalThis.KeyboardEvent) {
       if (
         (event.target as HTMLElement).closest(
-          'input, textarea, select, dialog, [role="combobox"], [role="listbox"]',
+          'input, textarea, select, dialog, [role="combobox"], [role="listbox"], [role="menu"]',
         ) ||
         event.ctrlKey ||
         event.metaKey ||
@@ -505,17 +510,18 @@ export function Tabletop({ code }: { code: string }) {
                 {snapshot.panel.structures
                   .filter((s) => s.templateKey.startsWith('poi_'))
                   .map((anchor) => (
-                    <button
+                    <PoiActionsMenu
                       key={anchor.id}
-                      className="button secondary"
-                      disabled={!canEdit}
-                      aria-label={t('world.link', {
-                        name: anchor.name ?? t(`world.${anchor.templateKey}`),
-                      })}
-                      onClick={() => setPoiId(anchor.id)}
-                    >
-                      {anchor.name ?? t(`world.${anchor.templateKey}`)}
-                    </button>
+                      anchor={anchor}
+                      panelId={snapshot.panel.id}
+                      panels={snapshot.panels}
+                      busy={healthBusy}
+                      onSave={room.configurePoi}
+                      onChoose={(action) => {
+                        setPoiAction(action);
+                        setPoiId(anchor.id);
+                      }}
+                    />
                   ))}
               </div>
             )}
@@ -527,16 +533,18 @@ export function Tabletop({ code }: { code: string }) {
                     <MonsterPortrait sprite={monster.sprite} size={32} />
                     <div>
                       {isGM ? (
-                        <button
-                          disabled={!canEdit}
-                          aria-label={t('monsters.inspect', { name: monsterName(monster) })}
-                          onClick={() => {
+                        <MonsterActionsMenu
+                          monster={monster}
+                          panelId={snapshot.panel.id}
+                          busy={healthBusy}
+                          inCombat={!!snapshot.room.activeCombat}
+                          onAdjust={room.adjustMonsterHp}
+                          onCombat={room.startCombat}
+                          onInspect={() => {
                             setMonsterId(monster.id);
                             setTool('move');
                           }}
-                        >
-                          {monsterName(monster)}
-                        </button>
+                        />
                       ) : (
                         <strong>{monsterName(monster)}</strong>
                       )}
@@ -690,13 +698,14 @@ export function Tabletop({ code }: { code: string }) {
             <div className="scene-toolbar-actions">
               {isGM && (
                 <button
-                  className="icon-button"
+                  className="button secondary bestiary-trigger"
                   aria-label={t('monsters.bestiary')}
                   title={t('monsters.bestiary')}
                   disabled={!canEdit}
                   onClick={() => setBestiaryOpen(true)}
                 >
                   <BookOpen size={18} aria-hidden="true" />
+                  <span>{t('monsters.bestiary')}</span>
                 </button>
               )}
               <span className="save-state" role="status">
@@ -888,8 +897,8 @@ export function Tabletop({ code }: { code: string }) {
                   ...cell,
                 })
               }
-              onInspectStructure={setPoiId}
-              onInspectMonster={setMonsterId}
+              onInspectStructure={(id, point) => setPoiMenu({ id, point })}
+              onInspectMonster={(id, point) => setMonsterMenu({ id, point })}
               onMoveMonster={room.moveMonster}
               onSummon={async (cell) => {
                 if (!summonDefinition) return false;
@@ -1140,6 +1149,8 @@ export function Tabletop({ code }: { code: string }) {
         ))}
       {inspectedPoi && isGM && (
         <PoiLinkModal
+          key={`${inspectedPoi.id}:${poiAction}`}
+          action={poiAction}
           anchor={inspectedPoi}
           panelId={snapshot.panel.id}
           panels={snapshot.panels}
@@ -1149,6 +1160,27 @@ export function Tabletop({ code }: { code: string }) {
           onClose={() => setPoiId(undefined)}
         />
       )}
+      {poiMenu &&
+        isGM &&
+        snapshot.panel.structures
+          ?.filter((s) => s.id === poiMenu.id)
+          .map((anchor) => (
+            <PoiActionsMenu
+              key={`${anchor.id}:${poiMenu.point.x}:${poiMenu.point.y}`}
+              anchor={anchor}
+              point={poiMenu.point}
+              panelId={snapshot.panel.id}
+              panels={snapshot.panels}
+              busy={healthBusy}
+              onClose={() => setPoiMenu(undefined)}
+              onSave={room.configurePoi}
+              onChoose={(action) => {
+                setPoiAction(action);
+                setPoiId(anchor.id);
+                setPoiMenu(undefined);
+              }}
+            />
+          ))}
       {snapshot.room.travelVote && (
         <PoiTransitionModal
           key={snapshot.room.travelVote.id}
@@ -1190,6 +1222,32 @@ export function Tabletop({ code }: { code: string }) {
           onClose={() => setMonsterId(undefined)}
         />
       )}
+      {monsterMenu &&
+        isGM &&
+        !snapshot.room.activeCombat &&
+        snapshot.panel.monsters
+          ?.filter((m) => m.id === monsterMenu.id)
+          .map((monster) => (
+            <MonsterActionsMenu
+              key={`${monster.id}:${monsterMenu.point.x}:${monsterMenu.point.y}`}
+              monster={monster}
+              panelId={snapshot.panel.id}
+              busy={healthBusy}
+              inCombat={false}
+              point={monsterMenu.point}
+              onClose={() => setMonsterMenu(undefined)}
+              onAdjust={room.adjustMonsterHp}
+              onCombat={async (request) => {
+                const ok = await room.startCombat(request);
+                if (ok) setMonsterMenu(undefined);
+                return ok;
+              }}
+              onInspect={() => {
+                setMonsterId(monster.id);
+                setMonsterMenu(undefined);
+              }}
+            />
+          ))}
       {snapshot.room.activeCombat && (
         <CombatArena
           key={snapshot.room.activeCombat.id}
@@ -1203,6 +1261,7 @@ export function Tabletop({ code }: { code: string }) {
           onNext={room.nextCombatTurn}
           onEnd={room.endCombat}
           onRoll={room.rollDice}
+          onInitiative={room.rollInitiative}
         />
       )}
       {room.combatTransition === 'exit' && (

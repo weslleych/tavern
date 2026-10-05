@@ -60,7 +60,8 @@ test('custom PNG monsters persist through refresh and can be dragged without cha
     await page.mouse.move(end.x, end.y, { steps: 8 });
     await page.mouse.up();
     await expect.poll(() => latest.panel.monsters?.find((m) => m.name === 'Ember wisp')?.x).toBe(5);
-    await page.getByRole('button', { name: 'Inspect Ember wisp' }).click();
+    await page.getByRole('button', { name: 'Actions for Ember wisp' }).click();
+    await page.getByRole('menuitem', { name: 'Inspect monster' }).click();
     const inspector = page.getByRole('dialog', { name: 'Ember wisp' });
     await expect(inspector.getByLabel('Column', { exact: true })).toHaveValue('6');
     await expect(inspector).toContainText('27/27');
@@ -90,7 +91,8 @@ test('GM summons and damages a bar-only monster, toggles privacy and removes it'
     await clickTile(page, 4, 4);
     await expect(player.locator('.monster-list')).toContainText('Acid Slime');
     await expect(player.locator('.monster-list')).not.toContainText('12/12');
-    await page.getByRole('button', { name: 'Inspect Acid Slime' }).click();
+    await page.getByRole('button', { name: 'Actions for Acid Slime' }).click();
+    await page.getByRole('menuitem', { name: 'Inspect monster' }).click();
     const editor = page.getByRole('dialog', { name: 'Acid Slime' });
     await editor.getByRole('button', { name: '-5 HP', exact: true }).click();
     await expect(editor).toContainText('7/12');

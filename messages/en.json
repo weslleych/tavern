@@ -638,7 +638,11 @@
     "diceNotation": "Enter valid dice notation.",
     "monsterSprite": "Choose a 32 × 32 PNG sprite.",
     "monsterHpChange": "Provide an HP change.",
-    "monsterHpChoice": "Choose current HP or a delta."
+    "monsterHpChoice": "Choose current HP or a delta.",
+    "initiativeRound": "Choose the current encounter and initiative round.",
+    "initiativePlayer": "Only players roll their own initiative.",
+    "initiativeDuplicate": "You already rolled initiative for this combat.",
+    "initiativePhase": "Wait for the initiative phase."
   },
   "world": {
     "world": "World",
@@ -675,7 +679,16 @@
     "approved": "GM approved",
     "structures": "Points of interest",
     "summonHint": "Choose a free tile to summon {name}.",
-    "cancelPlacement": "Cancel placement"
+    "cancelPlacement": "Cancel placement",
+    "actionsFor": "Actions for {name}",
+    "linkedTo": "Linked to {name}",
+    "linkExisting": "Link existing scene",
+    "createLinkedTown": "Create linked town scene",
+    "createLinkedDungeon": "Create linked dungeon scene",
+    "unlinkScene": "Unlink scene",
+    "createAndLink": "Create and link scene",
+    "linkHint": "Choose a destination for this point of interest.",
+    "createLinkHint": "Create a new scene and link it to this point of interest. Your current scene stays open."
   },
   "lifecycle": {
     "actions": "Campaign actions",
@@ -729,7 +742,14 @@
     "slime": "Acid Slime",
     "spider": "Giant Spider",
     "goblin": "Goblin Raider",
-    "dragon": "Young Red Dragon"
+    "dragon": "Young Red Dragon",
+    "bestiaryHint": "Choose a creature to summon, then select a free tile on the map. You can also create your own monsters.",
+    "emptyCustom": "No custom monsters yet. Create one to add it to your bestiary.",
+    "actionsFor": "Actions for {name}",
+    "details": "Inspect monster",
+    "damage": "Deal {amount} damage",
+    "heal": "Heal {amount} HP",
+    "restoreHp": "Restore full HP"
   },
   "combat": {
     "arena": "Combat arena",
@@ -754,6 +774,14 @@
     "basic": "Basic attack",
     "freeRoll": "Free dice roll",
     "roll": "Roll dice",
-    "initiative": "Initiative (Round {round})"
+    "initiative": "Initiative (Round {round})",
+    "initiativeTitle": "Roll for initiative",
+    "initiativeHint": "At the start of combat, each online, conscious adventurer rolls 1d20 + Dexterity once. This turn order stays fixed for the whole encounter. The monster rolls automatically.",
+    "initiativeProgress": "{ready} of {total} adventurers ready",
+    "initiativeReady": "Ready · {total}",
+    "initiativePending": "Waiting for roll",
+    "initiativeOffline": "Offline · waiting to reconnect",
+    "rollInitiative": "Roll initiative",
+    "initiativeRolled": "Your initiative: {total}. Waiting for the party."
   }
 }

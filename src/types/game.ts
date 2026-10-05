@@ -243,6 +243,7 @@ export interface ClientEvents {
   'monster:set_visibility': (request: MonsterVisibilityRequest, ack: Ack<null>) => void;
   'monster:remove': (request: MonsterReference, ack: Ack<null>) => void;
   'combat:start': (request: MonsterReference, ack: Ack<null>) => void;
+  'combat:initiative': (request: CombatInitiativeRequest, ack: Ack<null>) => void;
   'combat:attack_player': (request: PlayerAttackRequest, ack: Ack<null>) => void;
   'combat:attack_monster': (request: MonsterAttackRequest, ack: Ack<null>) => void;
   'combat:next_turn': (ack: Ack<null>) => void;
@@ -402,11 +403,15 @@ export interface ActiveCombatState {
   round: number;
   turnIndex: number;
   turnQueue: CombatParticipant[];
-  status: 'active' | 'resolved';
+  status: 'initiative' | 'active' | 'resolved';
   partyIds: string[];
   lastAction?: CombatEffect;
 }
 export type PublicCombatState = ActiveCombatState;
+export interface CombatInitiativeRequest {
+  combatId: string;
+  round: number;
+}
 export interface PlayerAttackRequest {
   targetMonsterId: string;
   attackId: string;

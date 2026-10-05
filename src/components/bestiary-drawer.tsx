@@ -315,17 +315,24 @@ export function BestiaryDrawer({
 }) {
   const t = useTranslations(),
     name = useMonsterName(),
+    formatError = useErrorMessage(),
     [editing, setEditing] = useState<MonsterDefinition | null | undefined>();
   return (
     <>
       <Modal title={t('monsters.bestiary')} className="bestiary-drawer" onClose={onClose}>
-        <Tabs defaultValue="presets">
+        <p className="modal-description">{t('monsters.bestiaryHint')}</p>
+        <Tabs defaultValue="presets" className="bestiary-content">
           <TabsList aria-label={t('monsters.bestiary')}>
             <TabsTrigger value="presets">{t('monsters.presets')}</TabsTrigger>
             <TabsTrigger value="custom">{t('monsters.custom')}</TabsTrigger>
           </TabsList>
           {['presets', 'custom'].map((tab) => (
             <TabsContent key={tab} value={tab}>
+              {tab === 'custom' && !definitions.some((d) => d.isCustom) && (
+                <p className="bestiary-empty" role="status">
+                  {t('monsters.emptyCustom')}
+                </p>
+              )}
               <div className="bestiary-grid">
                 {definitions
                   .filter((d) => (tab === 'custom' ? d.isCustom : !d.isCustom))
@@ -382,10 +389,17 @@ export function BestiaryDrawer({
             </TabsContent>
           ))}
         </Tabs>
-        <button className="button secondary" disabled={busy} onClick={() => setEditing(null)}>
-          <Plus size={16} aria-hidden="true" />
-          {t('monsters.create')}
-        </button>
+        <div className="bestiary-footer">
+          {error && (
+            <p className="form-error" role="alert">
+              {formatError(error)}
+            </p>
+          )}
+          <button className="button secondary" disabled={busy} onClick={() => setEditing(null)}>
+            <Plus size={16} aria-hidden="true" />
+            {t('monsters.create')}
+          </button>
+        </div>
       </Modal>
       {editing !== undefined && (
         <MonsterFormModal
