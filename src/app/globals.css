@@ -596,7 +596,7 @@ h2 {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 26/18;
+  aspect-ratio: 1;
   image-rendering: pixelated;
 }
 .preview-caption {
@@ -643,7 +643,7 @@ h2 {
 }
 .start-section {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 93px;
   padding: 42px 0 55px;
   border-top: 1px solid var(--border);
@@ -1926,7 +1926,7 @@ a {
     bottom: -13px;
   }
   .start-section {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 27px;
     padding: 32px 0;
   }

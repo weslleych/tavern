@@ -23,7 +23,7 @@ Open [localhost:3000](http://localhost:3000). No database setup is needed: maps 
 - Paint categorized world, city, dungeon, and tavern terrain on configurable 5–64 column/row maps, with original pixel sprites and optional PNG tiles.
 - Stamp 2×2 buildings and 3×3 landmarks. Link landmark entrances to scenes or generate town/dungeon destinations; travel requires a player majority and GM approval.
 - Pan, zoom, fit, and paint with mouse, touch, or keyboard. Floating map controls preserve the canvas area, and zoom/focus persist across tool changes and resizes.
-- Start with an empty canvas or a generated woodland clearing.
+- Start with an empty canvas or a 40×40 adventure world: four linked landmarks lead to a furnished village, tavern, caverns, castle and shrine, with return routes and ready-to-use cavern monsters. Additional scenes can still use the woodland clearing template.
 - See live party presence, confirmed map edits, and automatic reconnect.
 - Retain the GM role after refresh and server restart.
 - Persist with MongoDB or local storage; export/import scenes as versioned JSON.

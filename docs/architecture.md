@@ -39,6 +39,10 @@ No accounts, token expiry, recovery, or GM transfer exist yet. Losing the creato
 
 Explicit departure marks the persisted player session `departed` and removes its map token. That credential can no longer reconnect, and later scene changes cannot respawn it. Removing a saved Hub card only changes that browser's saved list. GM campaign deletion filters the room, its scenes, and sessions in one serialized mutation; dice history disappears with the room. Only after a successful save does the gateway notify and disconnect every connected seat. Missing-room reconnects carry `ROOM_NOT_FOUND` so offline clients can discard stale credentials.
 
+## Starting adventure
+
+Creating a room with the existing `woodland` request key now builds a six-scene adventure atomically inside the room creation mutation. `src/lib/starter-world.ts` defines deterministic terrain, furnishings, landmarks, arrivals and monster placements; the Hub preview uses the same overworld layout. `src/server/starter-world.ts` allocates fresh scene IDs, stamps structures with the authoritative footprint helper, resolves destination keys within that room and copies preset monster statistics. The active scene is the 40×40 overworld. Every landmark has a walkable approach and a destination; local exits connect back to the world, with the tavern returning through the village. Existing rooms are not migrated. Blank room creation and individual woodland scene generation retain their existing behavior.
+
 ## World structures, monsters and encounters
 
 Structure placement uses trusted 2×2/3×3 templates. The server writes a complete anchor and footprint atomically, validates bounds, and removes the entire structure when any child is erased or overwritten. Destination deletion unlinks incoming POIs. Portable imports regenerate anchor IDs and discard destination links belonging to the source room.

@@ -31,7 +31,7 @@
     "madeForFriends": "Made for friends",
     "noAccounts": "No accounts needed",
     "worldWaiting": "A world waiting to happen",
-    "woodlandPreview": "The woodland clearing",
+    "woodlandPreview": "The starter world",
     "smallMaps": "Small maps. Endless possibilities.",
     "storyStarts": "Every great story starts somewhere.",
     "makeItYours": "Make it yours, one tile at a time",
@@ -56,7 +56,7 @@
     "tableName": "Table name",
     "tablePlaceholder": "e.g. The road to Guardia",
     "startingMap": "Starting map",
-    "woodlandOption": "Woodland clearing · ready to explore",
+    "woodlandOption": "Adventure world · 40×40 with linked scenes",
     "blankOption": "Blank canvas · build from scratch",
     "startingClasses": "Starting classes",
     "configureClasses": "Configure classes",
@@ -76,7 +76,7 @@
     "footerPlay": "Built for play. Open to everyone.",
     "defaultAdventure": "An adventure",
     "yourAdventure": "Your adventure",
-    "previewAlt": "An original pixel-art woodland map with a river, trail, and campsite"
+    "previewAlt": "A pixel-art adventure world with roads, river bridges, a town, caverns, a castle and a shrine"
   },
   "tabletop": {
     "inviteCopied": "Invite link copied. Send it to your party.",

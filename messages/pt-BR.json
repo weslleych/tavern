@@ -31,7 +31,7 @@
     "madeForFriends": "Feito para amigos",
     "noAccounts": "Sem precisar de conta",
     "worldWaiting": "Um mundo esperando por vocês",
-    "woodlandPreview": "A clareira da floresta",
+    "woodlandPreview": "O mundo inicial",
     "smallMaps": "Pequenos mapas. Possibilidades sem fim.",
     "storyStarts": "Toda grande história começa em algum lugar.",
     "makeItYours": "Dê seu toque, um quadrado de cada vez",
@@ -56,7 +56,7 @@
     "tableName": "Nome da mesa",
     "tablePlaceholder": "ex.: O caminho para Guardia",
     "startingMap": "Mapa inicial",
-    "woodlandOption": "Clareira da floresta · pronta para explorar",
+    "woodlandOption": "Mundo de aventura · 40×40 com cenas conectadas",
     "blankOption": "Tela em branco · comece do zero",
     "startingClasses": "Classes iniciais",
     "configureClasses": "Configurar classes",
@@ -76,7 +76,7 @@
     "footerPlay": "Feito para jogar. Aberto a todos.",
     "defaultAdventure": "Uma aventura",
     "yourAdventure": "Sua aventura",
-    "previewAlt": "Um mapa original em pixel art de uma floresta com rio, trilha e acampamento"
+    "previewAlt": "Um mundo de aventura em pixel art com estradas, pontes sobre o rio, vila, cavernas, castelo e santuário"
   },
   "tabletop": {
     "inviteCopied": "Link de convite copiado. Envie para seu grupo.",

@@ -58,6 +58,7 @@ import { classAttack, defaultAttacks, sortInitiative } from '../lib/combat';
 import { parseDiceNotation } from '../lib/dice-notation';
 import { clearStructuresAt, placeStructure, validateImportedStructures } from './structures';
 import type { GameStore, Session, StoredGame } from './store';
+import { createStarterWorld } from './starter-world';
 
 const hash = (token: string) => createHash('sha256').update(token).digest('hex');
 const now = () => new Date().toISOString();
@@ -210,19 +211,23 @@ export class GameService {
       };
       const session = this.newSession(state, room, request.nickname, 'gm');
       room.gmId = session.memberId;
-      const grid = { cols: 26, rows: 18, tileSize: 32 };
-      const panel: Panel = {
-        id: randomUUID(),
-        roomId: room.id,
-        name: 'The clearing',
-        order: 0,
-        grid,
-        tiles: request.template === 'woodland' ? woodland(grid) : [],
-        updatedAt: now(),
-      };
-      room.activePanelId = panel.id;
+      const panels: Panel[] =
+        request.template === 'woodland'
+          ? createStarterWorld(room.id, now())
+          : [
+              {
+                id: randomUUID(),
+                roomId: room.id,
+                name: 'The clearing',
+                order: 0,
+                grid: { cols: 26, rows: 18, tileSize: 32 },
+                tiles: [],
+                updatedAt: now(),
+              },
+            ];
+      room.activePanelId = panels[0].id;
       state.rooms.push(room);
-      state.panels.push(panel);
+      state.panels.push(...panels);
       return session;
     });
   }

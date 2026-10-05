@@ -198,7 +198,7 @@ export function Hub() {
                   <strong>{t('hub.smallMaps')}</strong>
                   <span>{t('hub.storyStarts')}</span>
                 </div>
-                <span className="preview-grid-label">26 × 18</span>
+                <span className="preview-grid-label">40 × 40</span>
               </div>
             </div>
             <div className="map-note">

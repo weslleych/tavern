@@ -19,8 +19,11 @@ async function fixture(options: ConstructorParameters<typeof GameService>[1] = {
   const directory = await mkdtemp(join(tmpdir(), 'tavern-expansion-'));
   const store = new FileStore(join(directory, 'state.json'));
   const game = new GameService(store, options);
-  const credential = await game.create({ name: 'World', nickname: 'GM', template: 'woodland' });
+  const credential = await game.create({ name: 'World', nickname: 'GM', template: 'blank' });
   const gm = await game.authenticate(credential);
+  const emptyPanelId = (await game.snapshot(gm)).panel.id;
+  await game.createPanel(gm, { name: 'Test woodland', cols: 26, rows: 18, template: 'woodland' });
+  await game.removePanel(gm, emptyPanelId);
   const playerCredential = await game.join({ code: credential.roomCode, nickname: 'Hero' });
   const player = await game.authenticate(playerCredential);
   await game.updateCharacter(player, defaultAppearance);

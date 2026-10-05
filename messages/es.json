@@ -31,7 +31,7 @@
     "madeForFriends": "Hecho para amigos",
     "noAccounts": "Sin necesidad de cuentas",
     "worldWaiting": "Un mundo por descubrir",
-    "woodlandPreview": "El claro del bosque",
+    "woodlandPreview": "El mundo inicial",
     "smallMaps": "Pequeños mapas. Posibilidades infinitas.",
     "storyStarts": "Toda gran historia empieza en algún lugar.",
     "makeItYours": "Hazlo tuyo, una casilla a la vez",
@@ -56,7 +56,7 @@
     "tableName": "Nombre de la mesa",
     "tablePlaceholder": "p. ej. El camino a Guardia",
     "startingMap": "Mapa inicial",
-    "woodlandOption": "Claro del bosque · listo para explorar",
+    "woodlandOption": "Mundo de aventura · 40×40 con escenas conectadas",
     "blankOption": "Lienzo en blanco · empieza de cero",
     "startingClasses": "Clases iniciales",
     "configureClasses": "Configurar clases",
@@ -76,7 +76,7 @@
     "footerPlay": "Hecho para jugar. Abierto a todos.",
     "defaultAdventure": "Una aventura",
     "yourAdventure": "Tu aventura",
-    "previewAlt": "Un mapa original de pixel art de un bosque con río, sendero y campamento"
+    "previewAlt": "Un mundo de aventura en pixel art con caminos, puentes sobre el río, aldea, cavernas, castillo y santuario"
   },
   "tabletop": {
     "inviteCopied": "Enlace de invitación copiado. Envíalo a tu grupo.",
