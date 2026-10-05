@@ -2,6 +2,7 @@
 @import '../components/classes.css';
 @import '../components/dice-sidebar.css';
 @import '../components/health.css';
+@import '../components/expansion.css';
 
 @theme inline {
   --color-forest: #284e3c;

@@ -135,55 +135,57 @@ Phase 9 verification passes all 65 unit/domain/integration tests and 29 browser 
 
 ## Major Update: World Expansion, Campaigns & Tactical Encounters (Phases 10–13)
 
-### Phase 10: World sprites, categorized tabs & multi-tile POI scene transitions — planned
+### Phase 10: World sprites, categorized tabs & multi-tile POI scene transitions — implemented
 
-- [ ] Categorized terrain palette using shadcn/ui Tabs (`@radix-ui/react-tabs`) in `.brush-dock` with keyboard navigation and dark-fantasy styling.
-- [ ] World / Overworld tab: procedurally rendered Snow Mountains (glacial peaks) and Sand Mountains (desert dunes).
-- [ ] Overworld 3×3 Points of Interest (POIs) inspired by _Chrono Trigger_ (Walled Town, Dark Cave/Dungeon, Fortress/Castle, Ancient Arcane Shrine).
-- [ ] City tab: 1×1 urban cobblestone, canal water, 2×2 timber houses, forge/shops, and 1×1 props (lampposts with warm halo, barrels/crates, fountains, wells).
-- [ ] Dungeon tab: 1×1 dark flagstones, damp earth, lava/acid hazards, mossy dungeon walls, iron prison bars, reinforced doors, and props (scattered skeleton remains, wall torches, chests, sacrificial altar).
-- [ ] Identified 4th tab — Interiors & Tavern: hardwood floors, timber walls, 2×2 tavern bar counters, banquet feast tables, hearth fireplaces, and inn beds.
-- [ ] Multi-tile (2×2 and 3×3) anchor-tile footprint data model, brush hover preview, and Canvas 2D composite pixel-art rendering.
-- [ ] Authoritative Group Travel Prompt: stepping on a POI entrance triggers a party-wide modal vote with 30s timeout, entrance debounce, and strictly enforced consensus gate (majority of active players vote YES and GM approves).
-- [ ] Scene transition relocates all party members synchronously to the destination scene's spawn point using Tavern's deterministic `spawnCharacters` and `firstFreeTile`.
+- [x] Categorized terrain palette using shadcn/ui Tabs (`@radix-ui/react-tabs`) in `.brush-dock` with keyboard navigation and dark-fantasy styling.
+- [x] World / Overworld tab: procedurally rendered Snow Mountains (glacial peaks) and Sand Mountains (desert dunes).
+- [x] Overworld 3×3 Points of Interest (POIs) inspired by _Chrono Trigger_ (Walled Town, Dark Cave/Dungeon, Fortress/Castle, Ancient Arcane Shrine).
+- [x] City tab: 1×1 urban cobblestone, canal water, 2×2 timber houses, forge/shops, and 1×1 props (lampposts with warm halo, barrels/crates, fountains, wells).
+- [x] Dungeon tab: 1×1 dark flagstones, damp earth, lava/acid hazards, mossy dungeon walls, iron prison bars, reinforced doors, and props (scattered skeleton remains, wall torches, chests, sacrificial altar).
+- [x] Identified 4th tab — Interiors & Tavern: hardwood floors, timber walls, 2×2 tavern bar counters, banquet feast tables, hearth fireplaces, and inn beds.
+- [x] Multi-tile (2×2 and 3×3) anchor-tile footprint data model, brush hover preview, and Canvas 2D composite pixel-art rendering.
+- [x] Authoritative Group Travel Prompt: stepping on a POI entrance triggers a party-wide modal vote with 30s timeout, entrance debounce, and strictly enforced consensus gate (majority of active players vote YES and GM approves).
+- [x] Scene transition relocates all party members synchronously to the destination scene's spawn point using Tavern's deterministic `spawnCharacters` and `firstFreeTile`.
 
 Detailed specifications and implementation plan: [world sprites & POI plan](world_sprites_and_poi_plan.md).
 
-### Phase 11: Campaign lifecycle management (GM deletion & player removal) — planned
+### Phase 11: Campaign lifecycle management (GM deletion & player removal) — implemented
 
-- [ ] Browser `localStorage` session management enhancements (`forgetTable`, `hasSavedSession`).
-- [ ] GM campaign deletion: destructive server-side purge of room, panels, sessions, and rolls using native `GameService.mutate` across FileStore (`store.json`) and MongoStore without store-layer transaction fragility.
-- [ ] High-stakes confirmation guardrails in Hub and Tabletop (requiring room code or keyword confirmation before enabling delete).
-- [ ] Real-time `room:destroyed` Socket.io broadcast disconnecting participants and redirecting them to the Hub with an informative toast.
-- [ ] Player campaign removal: "Sair da Mesa" / "Remover" action detaching saved browser credentials, clearing active `session.token` to free map collision, and returning to the Hub without affecting the server room.
-- [ ] Headless `DELETE /api/rooms/:code` HTTP endpoint with GM cryptographic token verification.
+- [x] Browser `localStorage` session management enhancements (`forgetTable`, `hasSavedSession`).
+- [x] GM campaign deletion: destructive server-side purge of room, panels, sessions, and rolls using native `GameService.mutate` across FileStore (`store.json`) and MongoStore without store-layer transaction fragility.
+- [x] High-stakes confirmation guardrails in Hub and Tabletop (requiring room code or keyword confirmation before enabling delete).
+- [x] Real-time `room:destroyed` Socket.io broadcast disconnecting participants and redirecting them to the Hub with an informative toast.
+- [x] Player campaign removal: active "Sair da Mesa" clears the map token, revokes the seat and returns to the Hub; "Remover" on a saved card only forgets the browser entry. The campaign remains available to the GM and other players.
+- [x] Headless `DELETE /api/rooms/:code` HTTP endpoint with GM cryptographic token verification.
 
 Detailed specifications and implementation plan: [campaign lifecycle plan](campaign_lifecycle_plan.md).
 
-### Phase 12: Monster creation, bestiary & summoning — planned
+### Phase 12: Monster creation, bestiary & summoning — implemented
 
-- [ ] Built-in classic RPG monster bestiary with 8 presets (Giant Bat, Bandit Outlaw, Putrid Zombie, Skeleton Warrior, Acid Slime, Giant Spider, Goblin Raider, Young Red Dragon).
-- [ ] Custom monster creator for the GM: canonical attribute modifiers (`forca`, `destreza`, `constituicao`, `inteligencia`, `sabedoria`, `carisma`), custom names, HP values, attack notations, and custom 32×32 PNG sprites.
-- [ ] Three-tier monster HP visibility (`HpVisibility`): `gm_only` (hidden from players), `bar_only` (colored health bar without numbers), and `public` (full numbers and bar) with real-time GM toggle on active tokens.
-- [ ] Server-side HP redaction in public snapshots and socket broadcasts to prevent client-side network metagaming.
-- [ ] Movement collision blocking in `walkable()` and `moveToken()` against active monsters (`currentHp > 0`).
-- [ ] Distinct Canvas 2D token rendering: pointed crimson indicator ring and skull indicator on defeat (0 HP).
-- [ ] Dedicated GM Bestiary drawer and token click popover for real-time monster HP adjustments and combat launch.
+- [x] Built-in classic RPG monster bestiary with 8 presets (Giant Bat, Bandit Outlaw, Putrid Zombie, Skeleton Warrior, Acid Slime, Giant Spider, Goblin Raider, Young Red Dragon).
+- [x] Custom monster creator for the GM: canonical attribute modifiers (`forca`, `destreza`, `constituicao`, `inteligencia`, `sabedoria`, `carisma`), custom names, HP values, attack notations, and custom 32×32 PNG sprites.
+- [x] Three-tier monster HP visibility (`HpVisibility`): `gm_only` (hidden from players), `bar_only` (colored health bar without numbers), and `public` (full numbers and bar) with real-time GM toggle on active tokens.
+- [x] Server-side HP redaction in public snapshots and socket broadcasts to prevent client-side network metagaming.
+- [x] Movement collision blocking in `walkable()` and `moveToken()` against active monsters (`currentHp > 0`).
+- [x] Distinct Canvas 2D token rendering: pointed crimson indicator ring and skull indicator on defeat (0 HP).
+- [x] Dedicated GM Bestiary drawer and token click popover for real-time monster HP adjustments and combat launch.
 
 Detailed specifications and implementation plan: [monster system plan](monster_system_plan.md).
 
-### Phase 13: Classic turn-based combat view & arena scene transition — planned
+### Phase 13: Classic turn-based combat view & arena scene transition — implemented
 
-- [ ] Opt-in GM trigger from map monster popover to enter Combat View without forcing rigid combat during casual roleplay.
-- [ ] Synchronized retro scene transition animation ("The Battle Wipe"): dramatic shutter/iris closure (~800ms) with `prefers-reduced-motion` cross-fade fallback.
-- [ ] Classic side-view combat arena: party heroes lined up on the Left with portraits/HP bars; summoned monster on the Right with scaled sprite.
-- [ ] Thematic battle backdrops dynamically derived from the active scene's dominant terrain (Forest, Dungeon, Snow, Desert).
-- [ ] Round-by-round authoritative d20 initiative (+ DES modifier) generating a visible top turn-order tracker with round counters.
-- [ ] Default class attacks for the 4 core classes (Warrior, Mage, Barbarian, Archer) stored on `CharacterClass.defaultAttack`, fully editable by the GM in Class Manager.
-- [ ] Default 1d12 monster attack damage (customizable by GM) with explicit GM target selection for which living adventurer the monster attacks.
-- [ ] Combat resolution (victory fanfare or tactical retreat) with smooth reverse transition back to the 2D map canvas preserving HP state.
+- [x] Opt-in GM trigger from map monster popover to enter Combat View without forcing rigid combat during casual roleplay.
+- [x] Synchronized retro scene transition animation ("The Battle Wipe"): dramatic shutter/iris closure (~800ms) with `prefers-reduced-motion` cross-fade fallback.
+- [x] Classic side-view combat arena: party heroes lined up on the Left with portraits/HP bars; summoned monster on the Right with scaled sprite.
+- [x] Thematic battle backdrops dynamically derived from the active scene's dominant terrain (Forest, Dungeon, Snow, Desert).
+- [x] Round-by-round authoritative d20 initiative (+ DES modifier) generating a visible top turn-order tracker with round counters.
+- [x] Default class attacks for the 4 core classes (Warrior, Mage, Barbarian, Archer) stored on `CharacterClass.defaultAttack`, fully editable by the GM in Class Manager.
+- [x] New custom monsters default to 1d12 damage; presets retain their thematic bestiary formulas (all customizable by GM) with explicit GM target selection for which living adventurer the monster attacks.
+- [x] Combat resolution (victory fanfare or tactical retreat) with smooth reverse transition back to the 2D map canvas preserving HP state.
 
 Detailed specifications and implementation plan: [combat view system plan](combat_view_system_plan.md).
+
+Phases 10–13 were implemented in roadmap order. The [execution checklist](expansion_execution.md) records reconciliation decisions and verification evidence. All 86 domain/integration tests and 36 browser tests pass, including the existing regression suites, together with TypeScript, ESLint, formatting and the production build. Live MongoDB integration was not run because `MONGODB_TEST_URI` is not configured.
 
 ## Operational follow-ups
 

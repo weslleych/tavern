@@ -5,6 +5,7 @@ import type {
   CharacterSubclass,
   CharacterAppearance,
 } from '../types/game';
+import { defaultAttacks } from './combat';
 
 export const attributeDefinitions: AttributeDefinition[] = [
   { id: 'forca', name: 'Força', abbreviation: 'STR' },
@@ -192,6 +193,9 @@ export const defaultClasses: CharacterClass[] = [
     ],
   },
 ];
+
+for (const characterClass of defaultClasses)
+  characterClass.defaultAttack = structuredClone(defaultAttacks[characterClass.id]);
 
 type PresetTranslator = (key: string) => string;
 

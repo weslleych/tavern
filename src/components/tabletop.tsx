@@ -36,6 +36,7 @@ import {
   Flag,
   LockKeyhole,
   UnlockKeyhole,
+  BookOpen,
 } from 'lucide-react';
 import { Brand } from './ui/brand';
 import { Modal } from './ui/modal';
@@ -49,22 +50,24 @@ import { ClassManager } from './class-manager';
 import { HealthStatus } from './health-status';
 import { HealthEditor } from './health-editor';
 import { MapCanvas } from './canvas/map-canvas';
-import { drawTile } from './canvas/render';
-import { terrainInfo } from '../lib/terrain';
+import { blockedTerrains } from '../lib/terrain';
+import { TerrainPalette } from './terrain-palette';
+import { PoiLinkModal, PoiTransitionModal } from './poi-transition-modal';
+import { CampaignActions, ConfirmDeleteDialog, ConfirmLeaveDialog } from './campaign-actions';
+import {
+  BestiaryDrawer,
+  MonsterInspector,
+  MonsterPortrait,
+  MonsterHealth,
+  useMonsterName,
+} from './bestiary-drawer';
+import { CombatArena } from './combat-arena';
+import { CombatTransitionWipe } from './combat-transition-wipe';
 import { useRoom } from '../lib/use-room';
 import { characterClassTitle } from '../lib/classes';
 import { useMediaQuery } from '../lib/use-media-query';
 import { importSchema, readableError, spriteSchema } from '../lib/validation';
-import { terrains, type Terrain, type MapTool } from '../types/game';
-
-function TerrainSwatch({ terrain }: { terrain: Terrain }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const ctx = ref.current?.getContext('2d');
-    if (ctx) drawTile(ctx, terrain, 0, 0, 32);
-  }, [terrain]);
-  return <canvas width={32} height={32} ref={ref} aria-hidden="true" className="terrain-swatch" />;
-}
+import { terrains, type Terrain, type MapTool, type TerrainCategory } from '../types/game';
 
 export function Tabletop({ code }: { code: string }) {
   const t = useTranslations();
@@ -76,6 +79,14 @@ export function Tabletop({ code }: { code: string }) {
     `tabletop.connection.${({ Connecting: 'connecting', Connected: 'connected', Reconnecting: 'reconnecting', 'Join this table': 'join', 'Session expired': 'expired' } as Record<string, string>)[status]}`,
   );
   const [terrain, setTerrain] = useState<Terrain>('grass');
+  const monsterName = useMonsterName();
+  const [paletteCategory, setPaletteCategory] = useState<TerrainCategory>('world');
+  const [structureKey, setStructureKey] = useState<string>();
+  const [poiId, setPoiId] = useState<string>();
+  const [monsterId, setMonsterId] = useState<string>();
+  const [bestiaryOpen, setBestiaryOpen] = useState(false);
+  const [summonId, setSummonId] = useState<string>();
+  const [campaignAction, setCampaignAction] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [tool, setTool] = useState<MapTool>('paint');
   const [grid, setGrid] = useState(true);
@@ -109,11 +120,17 @@ export function Tabletop({ code }: { code: string }) {
   );
   const hudMember = isGM ? selectedPlayer : snapshot?.you;
   const healthBusy = status !== 'Connected' || pending > 0;
+  const inspectedPoi = snapshot?.panel.structures?.find(
+    (s) => s.id === poiId && s.templateKey.startsWith('poi_'),
+  );
+  const inspectedMonster = snapshot?.panel.monsters?.find((m) => m.id === monsterId);
+  const summonDefinition = snapshot?.room.monsterDefinitions?.find((m) => m.id === summonId);
 
   function chooseTerrain(next: Terrain) {
     setTerrain(next);
+    setStructureKey(undefined);
     setTool('paint');
-    setBlocked(['forest', 'water', 'mountain', 'wall'].includes(next));
+    setBlocked(blockedTerrains.has(next));
   }
   useEffect(() => {
     function key(event: globalThis.KeyboardEvent) {
@@ -127,11 +144,13 @@ export function Tabletop({ code }: { code: string }) {
       )
         return;
       const index = event.key === '0' ? 9 : Number(event.key) - 1;
-      if (index >= 0 && index < terrains.length && isGM) {
+      if (index >= 0 && index < 10 && isGM) {
         const next = terrains[index];
         setTerrain(next);
         setTool('paint');
-        setBlocked(['forest', 'water', 'mountain', 'wall'].includes(next));
+        setStructureKey(undefined);
+        setPaletteCategory('world');
+        setBlocked(blockedTerrains.has(next));
       }
       if (event.key.toLowerCase() === 'h') setTool('pan');
       if (event.key.toLowerCase() === 'b' && isGM) setTool('paint');
@@ -174,11 +193,20 @@ export function Tabletop({ code }: { code: string }) {
   }
   function exportMap() {
     if (!snapshot) return;
-    const { name, grid, tiles } = snapshot.panel;
+    const { name, grid, tiles, structures } = snapshot.panel;
     const url = URL.createObjectURL(
-      new Blob([JSON.stringify({ version: 1, name, grid, tiles }, null, 2)], {
-        type: 'application/json',
-      }),
+      new Blob(
+        [
+          JSON.stringify(
+            { version: 1, name, grid, tiles, ...(structures?.length ? { structures } : {}) },
+            null,
+            2,
+          ),
+        ],
+        {
+          type: 'application/json',
+        },
+      ),
     );
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -291,6 +319,18 @@ export function Tabletop({ code }: { code: string }) {
             <ArrowLeft size={15} /> {t('common.yourTables')}
           </Link>
         </section>
+        {snapshot.room.travelVote && (
+          <PoiTransitionModal
+            key={snapshot.room.travelVote.id}
+            vote={snapshot.room.travelVote}
+            members={snapshot.members}
+            you={snapshot.you}
+            busy={healthBusy}
+            error={room.error}
+            onVote={room.voteTravel}
+            onDecide={room.decideTravel}
+          />
+        )}
       </main>
     );
 
@@ -307,6 +347,11 @@ export function Tabletop({ code }: { code: string }) {
           <span className="room-name">{snapshot.room.name}</span>
         </div>
         <div className="room-nav-right">
+          <CampaignActions
+            isGM={!!isGM}
+            disabled={healthBusy}
+            onAction={() => setCampaignAction(true)}
+          />
           <LanguageSwitcher />
           {isGM && (
             <button
@@ -454,6 +499,53 @@ export function Tabletop({ code }: { code: string }) {
             </p>
           )}
           <div className="party-section">
+            {isGM && !!snapshot.panel.structures?.some((s) => s.templateKey.startsWith('poi_')) && (
+              <div className="poi-list">
+                <h3>{t('world.structures')}</h3>
+                {snapshot.panel.structures
+                  .filter((s) => s.templateKey.startsWith('poi_'))
+                  .map((anchor) => (
+                    <button
+                      key={anchor.id}
+                      className="button secondary"
+                      disabled={!canEdit}
+                      aria-label={t('world.link', {
+                        name: anchor.name ?? t(`world.${anchor.templateKey}`),
+                      })}
+                      onClick={() => setPoiId(anchor.id)}
+                    >
+                      {anchor.name ?? t(`world.${anchor.templateKey}`)}
+                    </button>
+                  ))}
+              </div>
+            )}
+            {!!snapshot.panel.monsters?.length && (
+              <div className="monster-list" aria-label={t('monsters.list')}>
+                <h3>{t('monsters.list')}</h3>
+                {snapshot.panel.monsters.map((monster) => (
+                  <div key={monster.id} className="monster-list-row">
+                    <MonsterPortrait sprite={monster.sprite} size={32} />
+                    <div>
+                      {isGM ? (
+                        <button
+                          disabled={!canEdit}
+                          aria-label={t('monsters.inspect', { name: monsterName(monster) })}
+                          onClick={() => {
+                            setMonsterId(monster.id);
+                            setTool('move');
+                          }}
+                        >
+                          {monsterName(monster)}
+                        </button>
+                      ) : (
+                        <strong>{monsterName(monster)}</strong>
+                      )}
+                      <MonsterHealth monster={monster} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="scene-list-heading">
               <span>{t('tabletop.party')}</span>
               <span>
@@ -596,6 +688,17 @@ export function Tabletop({ code }: { code: string }) {
               <span className="live-scene">{t('tabletop.liveScene')}</span>
             </div>
             <div className="scene-toolbar-actions">
+              {isGM && (
+                <button
+                  className="icon-button"
+                  aria-label={t('monsters.bestiary')}
+                  title={t('monsters.bestiary')}
+                  disabled={!canEdit}
+                  onClick={() => setBestiaryOpen(true)}
+                >
+                  <BookOpen size={18} aria-hidden="true" />
+                </button>
+              )}
               <span className="save-state" role="status">
                 {pending ? (
                   <LoaderCircle size={13} className="spin" />
@@ -621,9 +724,9 @@ export function Tabletop({ code }: { code: string }) {
               </button>
             </div>
           </div>
-          {(room.error || localError) && (
+          {(room.error || localError || room.notice) && (
             <div role="alert" className="room-error">
-              <span>{formatError(localError || room.error)}</span>
+              <span>{formatError(localError || room.error || room.notice)}</span>
               <button
                 className="icon-button"
                 aria-label={t('tabletop.dismissError')}
@@ -777,6 +880,30 @@ export function Tabletop({ code }: { code: string }) {
               onFog={(cells, revealed) =>
                 room.updateFog({ panelId: snapshot.panel.id, cells, revealed })
               }
+              structureKey={structureKey}
+              onPlaceStructure={(cell) =>
+                room.placeStructure({
+                  panelId: snapshot.panel.id,
+                  templateKey: structureKey!,
+                  ...cell,
+                })
+              }
+              onInspectStructure={setPoiId}
+              onInspectMonster={setMonsterId}
+              onMoveMonster={room.moveMonster}
+              onSummon={async (cell) => {
+                if (!summonDefinition) return false;
+                const success = await room.summonMonster({
+                  panelId: snapshot.panel.id,
+                  definitionId: summonDefinition.id,
+                  ...cell,
+                });
+                if (success) {
+                  setSummonId(undefined);
+                  setTool('move');
+                }
+                return success;
+              }}
             />
             <div className="map-hud-stack">
               <div className="character-hud">
@@ -880,27 +1007,25 @@ export function Tabletop({ code }: { code: string }) {
                   </span>
                   <small>{t('tabletop.paintHint')}</small>
                 </div>
-                <div className="terrain-palette">
-                  {terrains.map((next) => (
-                    <button
-                      key={next}
-                      aria-label={t(`tabletop.terrain.${next}`)}
-                      aria-pressed={terrain === next && tool === 'paint'}
-                      disabled={!canEdit}
-                      onClick={() => chooseTerrain(next)}
-                      title={`${t(`tabletop.terrain.${next}`)} (${terrainInfo[next].shortcut})`}
-                    >
-                      <TerrainSwatch terrain={next} />
-                      <span>{t(`tabletop.terrain.${next}`)}</span>
-                    </button>
-                  ))}
-                </div>
+                <TerrainPalette
+                  category={paletteCategory}
+                  terrain={terrain}
+                  structureKey={structureKey}
+                  disabled={!canEdit}
+                  onCategory={setPaletteCategory}
+                  onTerrain={chooseTerrain}
+                  onStructure={(key) => {
+                    setStructureKey(key);
+                    setSprite(undefined);
+                    setTool('paint');
+                  }}
+                />
                 <div className="brush-options">
                   <label>
                     <input
                       type="checkbox"
                       checked={blocked}
-                      disabled={terrain === 'empty' || !canEdit}
+                      disabled={terrain === 'empty' || !canEdit || !!structureKey}
                       onChange={(event) => setBlocked(event.target.checked)}
                     />
                     <Shield size={13} /> {t('tabletop.blockMovement')}
@@ -913,7 +1038,9 @@ export function Tabletop({ code }: { code: string }) {
                     />
                     {t('tabletop.showBlocked')}
                   </label>
-                  <span className="brush-current">{t(`tabletop.terrain.${terrain}`)}</span>
+                  <span className="brush-current">
+                    {structureKey ? t(`world.${structureKey}`) : t(`tabletop.terrain.${terrain}`)}
+                  </span>
                 </div>
                 <div className="sprite-options">
                   <button
@@ -939,6 +1066,20 @@ export function Tabletop({ code }: { code: string }) {
                     onChange={(event) => void importSprite(event.target.files?.[0])}
                   />
                 </div>
+              </div>
+            )}
+            {isGM && tool === 'summon' && summonDefinition && (
+              <div className="summon-hint" role="status">
+                <span>{t('world.summonHint', { name: monsterName(summonDefinition) })}</span>
+                <button
+                  className="button secondary"
+                  onClick={() => {
+                    setSummonId(undefined);
+                    setTool('move');
+                  }}
+                >
+                  {t('world.cancelPlacement')}
+                </button>
               </div>
             )}
             {!isGM && (
@@ -979,6 +1120,93 @@ export function Tabletop({ code }: { code: string }) {
           onSave={room.updateClasses}
           onClose={() => setClassManagerOpen(false)}
         />
+      )}
+      {campaignAction &&
+        (isGM ? (
+          <ConfirmDeleteDialog
+            code={code}
+            busy={healthBusy}
+            error={room.error}
+            onConfirm={room.deleteRoom}
+            onClose={() => setCampaignAction(false)}
+          />
+        ) : (
+          <ConfirmLeaveDialog
+            busy={healthBusy}
+            error={room.error}
+            onConfirm={room.leaveRoom}
+            onClose={() => setCampaignAction(false)}
+          />
+        ))}
+      {inspectedPoi && isGM && (
+        <PoiLinkModal
+          anchor={inspectedPoi}
+          panelId={snapshot.panel.id}
+          panels={snapshot.panels}
+          busy={healthBusy}
+          error={room.error}
+          onSave={room.configurePoi}
+          onClose={() => setPoiId(undefined)}
+        />
+      )}
+      {snapshot.room.travelVote && (
+        <PoiTransitionModal
+          key={snapshot.room.travelVote.id}
+          vote={snapshot.room.travelVote}
+          members={snapshot.members}
+          you={snapshot.you}
+          busy={healthBusy}
+          error={room.error}
+          onVote={room.voteTravel}
+          onDecide={room.decideTravel}
+        />
+      )}
+      {bestiaryOpen && isGM && (
+        <BestiaryDrawer
+          definitions={snapshot.room.monsterDefinitions ?? []}
+          busy={healthBusy}
+          error={room.error}
+          onSave={room.saveMonsterDefinition}
+          onDelete={room.deleteMonsterDefinition}
+          onSummon={(id) => {
+            setSummonId(id);
+            setTool('summon');
+            setSidebar(false);
+          }}
+          onClose={() => setBestiaryOpen(false)}
+        />
+      )}
+      {inspectedMonster && isGM && !snapshot.room.activeCombat && (
+        <MonsterInspector
+          monster={inspectedMonster}
+          panelId={snapshot.panel.id}
+          busy={healthBusy}
+          error={room.error}
+          onAdjust={room.adjustMonsterHp}
+          onVisibility={room.setMonsterVisibility}
+          onRemove={room.removeMonster}
+          onMove={room.moveMonster}
+          onCombat={room.startCombat}
+          onClose={() => setMonsterId(undefined)}
+        />
+      )}
+      {snapshot.room.activeCombat && (
+        <CombatArena
+          key={snapshot.room.activeCombat.id}
+          snapshot={snapshot}
+          busy={healthBusy}
+          error={room.error}
+          transition={room.combatTransition}
+          onTransitionEnd={room.finishCombatTransition}
+          onPlayerAttack={room.playerAttack}
+          onMonsterAttack={room.monsterAttack}
+          onNext={room.nextCombatTurn}
+          onEnd={room.endCombat}
+          onRoll={room.rollDice}
+        />
+      )}
+      {room.combatTransition === 'exit' && (
+        <CombatTransitionWipe direction="exit" onFinish={room.finishCombatTransition} />
       )}
       {healthMember?.health && (isGM || healthMember.id === snapshot.you.id) && (
         <HealthEditor

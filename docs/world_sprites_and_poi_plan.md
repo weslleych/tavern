@@ -2,7 +2,9 @@
 
 This plan defines the architecture, data models, canvas rendering, UI components, and networking protocols for expanding world customization with categorized sprite tabs (using shadcn/ui Tabs), adding snow/sand mountains, multi-tile (3×3 and 2×2) Points of Interest (POIs) inspired by classic RPG overworlds (_Chrono Trigger_), and an authoritative group scene-transition voting system.
 
-Status: Planned (Phase 10).
+Status: Implemented and verified (Phase 10).
+
+The reconciled scope and cross-plan decisions are recorded in [execution checklist](expansion_execution.md).
 
 ---
 
@@ -20,7 +22,7 @@ In virtual tabletops (VTTs), maintaining party cohesion and player agency is par
 
 1. When any adventurer steps onto a landmark entrance tile, a non-intrusive transition prompt appears for all active party members and the Game Master (GM).
 2. The group votes ("Enter" or "Stay").
-3. If the majority votes to enter and the GM approves (or if the GM unilaterally decides to advance), the server atomically switches the active scene (`Panel`) and places all party members at the destination scene's designated spawn point.
+3. If a strict majority of active players votes to enter and the GM approves, the server atomically switches the active scene (`Panel`) and places all party members at the destination scene's designated spawn point.
 
 ### 1.2 Categorized Terrain Palette with shadcn/ui Tabs
 
@@ -41,9 +43,9 @@ We introduce categorized tabs using `@radix-ui/react-tabs` (the foundation of sh
 - `src/components/ui/tabs.tsx`: New accessible component built on `@radix-ui/react-tabs` conforming to Tavern styling and keyboard arrow navigation.
 - `src/types/game.ts`:
   - Extend `Terrain` with `'sand_mountain' | 'snow_mountain' | 'dungeon_floor' | 'dungeon_wall' | 'cobblestone' | 'wood_floor' | 'wood_wall'`.
-  - Add `MultiTileDimension: { cols: number; rows: number }`.
-  - Add `PoiType: 'town' | 'dungeon' | 'castle' | 'shrine' | 'custom'`.
-  - Add `PoiMetadata` and `MultiTileStructure` interfaces.
+  - Use trusted template dimensions on `StructureTemplate` and `StructureAnchor`.
+  - Use the four canonical POI template keys on `StructureAnchor`.
+  - Add `StructureTemplate`, `StructureAnchor` and `TravelVote` interfaces.
   - Extend `Tile` with optional `structureId?: string; structureRoot?: boolean`.
   - Extend `ClientEvents` and `ServerEvents` with POI voting and transition events.
 - `src/lib/terrain.ts`:
@@ -56,18 +58,18 @@ We introduce categorized tabs using `@radix-ui/react-tabs` (the foundation of sh
   - Multi-tile composite sprite rendering engine supporting 64×64 (2×2) and 96×96 (3×3) assets.
 - `src/components/canvas/map-canvas.tsx`:
   - Multi-tile brush hover preview: Draws a 2×2 or 3×3 bounding box with placement validity indicator (green = valid, red = out of bounds).
-  - POI trigger collision detection: Detects when a moving player token lands on a POI entrance coordinate.
+  - POI entrance inspection and preview; authoritative trigger detection belongs in `GameService.moveToken`.
 - `src/components/tabletop.tsx`:
   - Refactor `.brush-dock` into categorized shadcn/ui Tabs.
   - Mount the `PoiTransitionModal` overlay for active votes.
 - `src/components/poi-transition-modal.tsx`:
-  - Accessible modal dialog for party voting with countdown timer, member status chips, and GM override controls.
+  - Accessible modal dialog for party voting with countdown timer, member status chips, and GM approval/veto controls.
 - `src/server/game.ts`:
   - Authoritative multi-tile placement and removal validation (atomic footprint verification).
   - POI entry trigger processing and voting state management.
   - Authoritative scene transition on vote resolution.
 - `src/server/gateway.ts`:
-  - Socket handlers for `poi:prompt`, `poi:vote`, `poi:gm_decide`, and `poi:transition`.
+  - Socket handlers for `poi:prompt`, `poi:vote`, `poi:gm_decide`, and personalized `room:snapshot` scene transitions.
 - `messages/{en,es,pt-BR}.json`:
   - Localized strings for tabs, tooltips, POI names, and voting dialogs.
 
@@ -229,17 +231,17 @@ sequenceDiagram
     Srv-->>Party: poi:prompt { poiId, name, targetPanelId, initiatedBy }
     Srv-->>GM: poi:prompt { poiId, name, targetPanelId, initiatedBy, isGM: true }
 
-    Player->>Srv: poi:vote { poiId, accept: true }
-    Party->>Srv: poi:vote { poiId, accept: true / false }
+    Player->>Srv: poi:vote { voteId, accept: true }
+    Party->>Srv: poi:vote { voteId, accept: true / false }
 
     alt Majority Votes YES and GM Approves
-        GM->>Srv: poi:gm_decide { poiId, approved: true }
+        GM->>Srv: poi:gm_decide { voteId, approved: true }
         Srv->>Srv: changePanel(targetPanelId) + spawnCharacters(reset=true)
         Srv-->>Player: room:snapshot (new scene + relocated party)
         Srv-->>Party: room:snapshot (new scene + relocated party)
         Srv-->>GM: room:snapshot (new scene + relocated party)
     else GM Rejects OR Majority Votes NO / 30s Timeout
-        GM->>Srv: poi:gm_decide { poiId, approved: false }
+        GM->>Srv: poi:gm_decide { voteId, approved: false }
         Srv->>Srv: setCooldown(poiId, 10s)
         Srv-->>Player: poi:cancelled { reason: "GM recusou" | "Maioria votou contra" | "Tempo esgotado" }
         Srv-->>Party: poi:cancelled
@@ -257,7 +259,7 @@ sequenceDiagram
   - If the majority of players vote "Não", the transition is aborted even if the GM approves.
 - **Movement Debounce & Cooldown**:
   - When a vote concludes without transition (declined, majority no, or timeout), a 10-second debounce is applied to that POI entrance coordinate for the player who triggered it.
-  - Stepping off and stepping back onto the entrance tile resets the debounce. This completely prevents annoying prompt pop-up loops while standing near or on the entrance tile.
+  - Stepping off and stepping back cannot bypass the 10-second cooldown. This completely prevents annoying prompt pop-up loops while standing near or on the entrance tile.
 - **Timeout**:
   - Automatic 30-second countdown timer. If timeout expires without quorum and GM approval, the prompt closes automatically and silently.
 - **Relocation Algorithm**:
@@ -269,7 +271,7 @@ sequenceDiagram
 
 ### 5.4 GM POI Linking Modal
 
-When the GM right-clicks or inspects a placed POI:
+When the GM inspects a placed POI using the Move tool or sidebar button (right-drag remains pan):
 
 - An inspection dialog displays:
   - POI Name (e.g. "Town of Guardia", "Magus's Lair").
@@ -282,36 +284,36 @@ When the GM right-clicks or inspects a placed POI:
 
 ### Phase 10.1: UI Tabs & Terrain Categorization
 
-- [ ] Install/adapt `@radix-ui/react-tabs` in `src/components/ui/tabs.tsx`.
-- [ ] Define categorized terrain catalog in `src/lib/terrain.ts` (`world`, `city`, `dungeon`, `interior`).
-- [ ] Refactor `.brush-dock` in `src/components/tabletop.tsx` to tabbed navigation with keyboard shortcuts.
-- [ ] Add unit tests for category filtering and tab selection state.
+- [x] Install/adapt `@radix-ui/react-tabs` in `src/components/ui/tabs.tsx`.
+- [x] Define categorized terrain catalog in `src/lib/terrain.ts` (`world`, `city`, `dungeon`, `interior`).
+- [x] Refactor `.brush-dock` in `src/components/tabletop.tsx` to tabbed navigation with keyboard shortcuts.
+- [x] Add browser checks for category filtering and keyboard tab selection state.
 
 ### Phase 10.2: Canvas 2D Multi-Tile Engine & Sprites
 
-- [ ] Implement new 1×1 procedural pixel art: Snow Mountain and Sand Mountain in `render.ts`.
-- [ ] Implement multi-tile rendering logic for 2×2 (houses, tables, tavern bars) and 3×3 (town, dungeon, castle, shrine).
-- [ ] Implement multi-tile bounding-box brush preview in `map-canvas.tsx`.
-- [ ] Add bounds-checking validation in `validation.ts` preventing multi-tile painting off map edges.
+- [x] Implement new 1×1 procedural pixel art: Snow Mountain and Sand Mountain in `render.ts`.
+- [x] Implement multi-tile rendering logic for 2×2 (houses, tables, tavern bars) and 3×3 (town, dungeon, castle, shrine).
+- [x] Implement multi-tile bounding-box brush preview in `map-canvas.tsx`.
+- [x] Add bounds-checking validation in `validation.ts` preventing multi-tile painting off map edges.
 
 ### Phase 10.3: POI Data Schema & Authoritative Footprints
 
-- [ ] Extend `Tile` and `Panel` types in `src/types/game.ts` for `structureId` and POI metadata.
-- [ ] Update `GameService.paintTile` to atomize multi-tile footprint placement and cleanup.
-- [ ] Add GM modal for editing POI destination panel link.
+- [x] Extend `Tile` and `Panel` types in `src/types/game.ts` for `structureId` and POI metadata.
+- [x] Update `GameService.paint` and `placeStructure` to atomize multi-tile footprint placement and cleanup.
+- [x] Add GM modal for editing POI destination panel link.
 
 ### Phase 10.4: Voting Flow & Scene Transition
 
-- [ ] Implement server-side voting state machine in `src/server/game.ts`.
-- [ ] Add Socket.io events in `src/server/gateway.ts` and `src/lib/use-room.ts`.
-- [ ] Create `PoiTransitionModal` component with countdown timer, player vote indicators, and GM controls.
-- [ ] Implement BFS spawn clustering for relocated party members on transition.
+- [x] Implement server-side voting state machine in `src/server/game.ts`.
+- [x] Add Socket.io events in `src/server/gateway.ts` and `src/lib/use-room.ts`.
+- [x] Create `PoiTransitionModal` component with countdown timer, player vote indicators, and GM controls.
+- [x] Reuse Manhattan-distance nearest-free spawning with row-major ties for relocated party members.
 
 ### Phase 10.5: Automated Verification & Regressions
 
-- [ ] Unit tests for multi-tile footprint calculations, collision flags, and bounds validation.
-- [ ] Socket integration tests for voting quorum, GM veto, and timeout handling.
-- [ ] Playwright E2E tests:
+- [x] Unit tests for multi-tile footprint calculations, collision flags, and bounds validation.
+- [x] Socket integration tests for voting quorum, GM veto, and timeout handling.
+- [x] Playwright E2E tests:
   - Paint a 3×3 POI and link to second scene.
   - Player steps on entrance -> modal opens on both player and GM screens.
   - Player votes "Yes", GM approves -> both browsers transition to destination scene at spawn point.
@@ -325,3 +327,5 @@ When the GM right-clicks or inspects a placed POI:
 3. **Linter**: `npm run lint` passes cleanly.
 4. **Browser E2E Suite**: `npx playwright test tests/e2e/poi-transition.spec.ts` passes.
 5. **Production Build**: `npm run build` succeeds without warnings.
+
+Verified on 2026-10-04: all 86 unit/domain/integration tests and 36 browser tests pass, together with TypeScript, ESLint, formatting and the production build. See the [execution evidence](expansion_execution.md). Live MongoDB integration was not run because `MONGODB_TEST_URI` is not configured.

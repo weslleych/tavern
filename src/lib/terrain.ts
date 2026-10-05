@@ -1,4 +1,4 @@
-import type { Grid, Terrain, Tile } from '../types/game';
+import type { Grid, Terrain, Tile, TerrainCategory, MultiTileDimension } from '../types/game';
 
 export const terrainInfo: Record<Terrain, { label: string; color: string; shortcut: string }> = {
   empty: { label: 'Erase', color: '#e9eee1', shortcut: '1' },
@@ -11,7 +11,187 @@ export const terrainInfo: Record<Terrain, { label: string; color: string; shortc
   sand: { label: 'Sand', color: '#d5bd82', shortcut: '8' },
   snow: { label: 'Snow', color: '#e2ebe7', shortcut: '9' },
   flowers: { label: 'Flowers', color: '#96b77c', shortcut: '0' },
+  ...(Object.fromEntries(
+    [
+      'snow_mountain',
+      'sand_mountain',
+      'cobblestone',
+      'stone_pavement',
+      'water_canal',
+      'dungeon_floor',
+      'dungeon_dirt',
+      'lava_pool',
+      'acid_pool',
+      'dungeon_wall',
+      'iron_bars',
+      'wooden_door_closed',
+      'wooden_door_open',
+      'skeleton_remains',
+      'wall_torch',
+      'treasure_chest',
+      'treasure_chest_open',
+      'sacrificial_altar',
+      'lamppost',
+      'crates_barrels',
+      'fountain',
+      'water_well',
+      'wood_floor',
+      'wood_wall',
+      'ornate_rug',
+      'stone_fireplace',
+      'inn_bed',
+      'bookshelf',
+      'wood_chair',
+    ].map((key) => [key, { label: key.replaceAll('_', ' '), color: '#84715d', shortcut: '' }]),
+  ) as Record<
+    Exclude<
+      Terrain,
+      | 'empty'
+      | 'grass'
+      | 'forest'
+      | 'water'
+      | 'mountain'
+      | 'stone'
+      | 'wall'
+      | 'sand'
+      | 'snow'
+      | 'flowers'
+    >,
+    { label: string; color: string; shortcut: string }
+  >),
 };
+
+export const terrainCategories: Record<TerrainCategory, Terrain[]> = {
+  world: [
+    'empty',
+    'grass',
+    'forest',
+    'water',
+    'mountain',
+    'stone',
+    'wall',
+    'sand',
+    'snow',
+    'flowers',
+    'snow_mountain',
+    'sand_mountain',
+  ],
+  city: [
+    'empty',
+    'cobblestone',
+    'stone_pavement',
+    'water_canal',
+    'lamppost',
+    'crates_barrels',
+    'fountain',
+    'water_well',
+  ],
+  dungeon: [
+    'empty',
+    'dungeon_floor',
+    'dungeon_dirt',
+    'lava_pool',
+    'acid_pool',
+    'dungeon_wall',
+    'iron_bars',
+    'wooden_door_closed',
+    'wooden_door_open',
+    'skeleton_remains',
+    'wall_torch',
+    'treasure_chest',
+    'treasure_chest_open',
+    'sacrificial_altar',
+  ],
+  interior: [
+    'empty',
+    'wood_floor',
+    'wood_wall',
+    'ornate_rug',
+    'stone_fireplace',
+    'inn_bed',
+    'bookshelf',
+    'wood_chair',
+  ],
+};
+export const blockedTerrains = new Set<Terrain>([
+  'forest',
+  'water',
+  'mountain',
+  'wall',
+  'snow_mountain',
+  'sand_mountain',
+  'water_canal',
+  'lava_pool',
+  'acid_pool',
+  'dungeon_wall',
+  'iron_bars',
+  'wooden_door_closed',
+  'wood_wall',
+  'lamppost',
+  'crates_barrels',
+  'fountain',
+  'water_well',
+  'treasure_chest',
+  'sacrificial_altar',
+  'stone_fireplace',
+  'inn_bed',
+  'bookshelf',
+]);
+export interface StructureTemplate extends MultiTileDimension {
+  key: string;
+  category: TerrainCategory;
+  terrain: Terrain;
+  entranceOffset: { dx: number; dy: number };
+  poi: boolean;
+}
+export const structureTemplates: StructureTemplate[] = [
+  ...['town', 'dungeon', 'castle', 'shrine'].map((kind) => ({
+    key: `poi_${kind}`,
+    category: 'world' as const,
+    cols: 3,
+    rows: 3,
+    terrain: 'cobblestone' as const,
+    entranceOffset: { dx: 1, dy: 2 },
+    poi: true,
+  })),
+  ...['house_timber', 'tavern_exterior', 'blacksmith_shop'].map((key) => ({
+    key,
+    category: 'city' as const,
+    cols: 2,
+    rows: 2,
+    terrain: 'cobblestone' as const,
+    entranceOffset: { dx: 0, dy: 1 },
+    poi: false,
+  })),
+  ...['tavern_counter', 'banquet_table'].map((key) => ({
+    key,
+    category: 'interior' as const,
+    cols: 2,
+    rows: 2,
+    terrain: 'wood_floor' as const,
+    entranceOffset: { dx: 0, dy: 1 },
+    poi: false,
+  })),
+];
+export function sceneTemplate(kind: 'town' | 'dungeon', grid: Grid): Tile[] {
+  return Array.from({ length: grid.cols * grid.rows }, (_, index) => {
+    const x = index % grid.cols,
+      y = Math.floor(index / grid.cols);
+    const edge = x === 0 || y === 0 || x === grid.cols - 1 || y === grid.rows - 1;
+    return {
+      x,
+      y,
+      terrain: edge
+        ? kind === 'town'
+          ? 'wall'
+          : 'dungeon_wall'
+        : kind === 'town'
+          ? 'cobblestone'
+          : 'dungeon_floor',
+      blocked: edge,
+    };
+  });
+}
 
 export function woodland(grid: Grid): Tile[] {
   const tiles: Tile[] = [];

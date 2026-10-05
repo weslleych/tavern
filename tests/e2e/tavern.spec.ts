@@ -95,6 +95,7 @@ test('hub works on mobile and invalid codes give a recoverable error', async ({ 
   await page.getByRole('combobox', { name: 'Starting map' }).focus();
   await page.keyboard.press('Enter');
   await page.keyboard.press('End');
+  await expect(page.getByRole('option', { name: 'Blank canvas' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('combobox', { name: 'Starting map' })).toContainText('Blank canvas');
 });

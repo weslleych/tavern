@@ -17,6 +17,8 @@ import {
   ShieldCheck,
   Users,
   WandSparkles,
+  Trash2,
+  LogOut,
 } from 'lucide-react';
 import { FormSelect } from './ui/select';
 import { LanguageSwitcher } from './ui/language-switcher';
@@ -27,7 +29,14 @@ import { ClassSummary } from './class-summary';
 import { defaultClasses } from '../lib/classes';
 import { Brand } from './ui/brand';
 import { MapPreview } from './canvas/map-preview';
-import { rememberTable, savedTables, sessionFor, type SavedTable } from '../lib/sessions';
+import {
+  forgetTable,
+  rememberTable,
+  savedTables,
+  sessionFor,
+  type SavedTable,
+} from '../lib/sessions';
+import { ConfirmDeleteDialog, ConfirmLeaveDialog } from './campaign-actions';
 import type { Credential, Reply } from '../types/game';
 
 export function Hub() {
@@ -39,6 +48,8 @@ export function Hub() {
   const [error, setError] = useState('');
   const [recent, setRecent] = useState<SavedTable[]>([]);
   const [code, setCode] = useState('');
+  const [campaignTarget, setCampaignTarget] = useState<SavedTable>();
+  const [notice, setNotice] = useState('');
   const [classes, setClasses] = useState(() => structuredClone(defaultClasses));
   const [classManagerOpen, setClassManagerOpen] = useState(false);
   const displayClasses = useClassCatalog(classes);
@@ -47,6 +58,9 @@ export function Hub() {
   useEffect(() => {
     Promise.resolve().then(() => {
       setRecent(savedTables());
+      const message = sessionStorage.getItem('tavern:lifecycle-notice');
+      if (['deleted', 'left', 'missing'].includes(message ?? '')) setNotice(message!);
+      sessionStorage.removeItem('tavern:lifecycle-notice');
       const invite = new URLSearchParams(window.location.search).get('join');
       if (invite) {
         setMode('join');
@@ -54,6 +68,55 @@ export function Hub() {
       }
     });
   }, []);
+  useEffect(() => {
+    const refresh = () => setRecent(savedTables());
+    window.addEventListener('storage', refresh);
+    window.addEventListener('tavern:tables-changed', refresh);
+    return () => {
+      window.removeEventListener('storage', refresh);
+      window.removeEventListener('tavern:tables-changed', refresh);
+    };
+  }, []);
+  async function manageCampaign() {
+    if (!campaignTarget || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      if (campaignTarget.role === 'gm') {
+        const response = await fetch(`/api/rooms/${campaignTarget.roomCode}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${campaignTarget.token}`,
+            'X-Member-Id': campaignTarget.memberId,
+          },
+        });
+        const reply = await response.json();
+        if (!reply.ok && response.status !== 404) throw new Error(reply.error);
+        setNotice('deleted');
+      }
+      forgetTable(campaignTarget.roomCode);
+      setRecent(savedTables());
+      setCampaignTarget(undefined);
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : 'The change could not be saved. Try again.',
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function openSavedTable(table: SavedTable) {
+    try {
+      const response = await fetch(`/api/rooms/${table.roomCode}`);
+      if (response.status === 404) {
+        forgetTable(table.roomCode);
+        setRecent(savedTables());
+        setNotice('missing');
+        return;
+      }
+    } catch {}
+    router.push(`/room/${table.roomCode}`);
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -333,26 +396,48 @@ export function Hub() {
           {recent.length ? (
             <div className="recent-grid">
               {recent.map((table) => (
-                <Link
-                  key={table.roomCode}
-                  className="recent-table"
-                  href={`/room/${table.roomCode}`}
-                >
-                  <div className="table-art">
-                    <Map size={26} />
-                  </div>
-                  <div>
-                    <h3>{table.name}</h3>
-                    <p>
-                      <span>
-                        {table.role === 'gm' ? <Crown size={13} /> : <Users size={13} />}
-                        {table.role === 'gm' ? t('common.gameMaster') : t('common.player')}
-                      </span>
-                      <span>{table.roomCode}</span>
-                    </p>
-                  </div>
-                  <ChevronRight size={19} />
-                </Link>
+                <div className="recent-card" key={table.roomCode}>
+                  <Link
+                    className="recent-table"
+                    href={`/room/${table.roomCode}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void openSavedTable(table);
+                    }}
+                  >
+                    <div className="table-art">
+                      <Map size={26} />
+                    </div>
+                    <div>
+                      <h3>{table.name}</h3>
+                      <p>
+                        <span>
+                          {table.role === 'gm' ? <Crown size={13} /> : <Users size={13} />}
+                          {table.role === 'gm' ? t('common.gameMaster') : t('common.player')}
+                        </span>
+                        <span>{table.roomCode}</span>
+                      </p>
+                    </div>
+                    <ChevronRight size={19} />
+                  </Link>
+                  <button
+                    className="icon-button recent-action"
+                    aria-label={t(
+                      table.role === 'gm' ? 'lifecycle.deleteNamed' : 'lifecycle.removeNamed',
+                      { name: table.name },
+                    )}
+                    onClick={() => {
+                      setError('');
+                      setCampaignTarget(table);
+                    }}
+                  >
+                    {table.role === 'gm' ? (
+                      <Trash2 size={18} aria-hidden="true" />
+                    ) : (
+                      <LogOut size={18} aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
               ))}
             </div>
           ) : (
@@ -382,6 +467,29 @@ export function Hub() {
             return true;
           }}
         />
+      )}
+      {campaignTarget &&
+        (campaignTarget.role === 'gm' ? (
+          <ConfirmDeleteDialog
+            code={campaignTarget.roomCode}
+            busy={busy}
+            error={error}
+            onConfirm={manageCampaign}
+            onClose={() => setCampaignTarget(undefined)}
+          />
+        ) : (
+          <ConfirmLeaveDialog
+            local
+            busy={busy}
+            error={error}
+            onConfirm={manageCampaign}
+            onClose={() => setCampaignTarget(undefined)}
+          />
+        ))}
+      {notice && (
+        <div className="toast" role="status">
+          {t(`lifecycle.${notice}`)}
+        </div>
       )}
     </div>
   );

@@ -7,6 +7,7 @@ import type { Member, Panel, Room } from '../types/game';
 export interface Session extends Member {
   roomId: string;
   tokenHash: string;
+  departed?: boolean;
 }
 export interface StoredGame {
   rooms: Room[];

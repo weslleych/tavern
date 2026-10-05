@@ -74,6 +74,7 @@ function RollCard({
     ? ` ${roll.modifier > 0 ? '+' : '-'} ${Math.abs(roll.modifier)}`
     : '';
   const gm = roll.role === 'gm';
+  const initiative = /^Initiative \(Round (\d+)\)$/.exec(roll.label ?? '');
   return (
     <li className="dice-roll-card" data-state={rolling ? 'rolling' : 'settled'}>
       <div className="dice-roll-author">
@@ -107,7 +108,9 @@ function RollCard({
                 ? t('dice.attributeCheck', {
                     attribute: t(`classes.attributes.${roll.attribute}.name`),
                   })
-                : roll.label}
+                : initiative
+                  ? t('combat.initiative', { round: Number(initiative[1]) })
+                  : roll.label}
               {roll.attribute ? ` · ${signedModifier(roll.modifier)}` : ''}
             </span>
           )}

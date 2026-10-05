@@ -1,4 +1,4 @@
-import type { CharacterAppearance, Panel, PlayerToken } from '../types/game';
+import type { CharacterAppearance, Panel, PlayerToken, PublicPanel } from '../types/game';
 
 export const skinColors = [
   '#fcd0a1',
@@ -74,20 +74,37 @@ export const defaultAppearance: CharacterAppearance = {
 };
 
 export const cellKey = (cell: { x: number; y: number }) => `${cell.x},${cell.y}`;
-export function walkable(panel: Panel, cell: { x: number; y: number }): boolean {
+export function walkable(panel: Panel | PublicPanel, cell: { x: number; y: number }): boolean {
   if (cell.x < 0 || cell.y < 0 || cell.x >= panel.grid.cols || cell.y >= panel.grid.rows)
     return false;
   const tile = panel.tiles.find((tile) => tile.x === cell.x && tile.y === cell.y);
-  return !!tile && tile.terrain !== 'empty' && !tile.blocked;
+  return (
+    !!tile &&
+    tile.terrain !== 'empty' &&
+    !tile.blocked &&
+    !panel.monsters?.some(
+      (m) =>
+        m.x === cell.x &&
+        m.y === cell.y &&
+        (m.currentHp !== undefined ? m.currentHp > 0 : !('defeated' in m && m.defeated)),
+    )
+  );
 }
 export function firstFreeTile(panel: Panel, occupied: Set<string>): PlayerToken | undefined {
   const tiles = new Map(panel.tiles.map((tile) => [cellKey(tile), tile]));
+  const monsterCells = new Set(panel.monsters?.filter((m) => m.currentHp > 0).map(cellKey));
   let best: PlayerToken | undefined;
   let distance = Infinity;
   for (let y = 0; y < panel.grid.rows; y++)
     for (let x = 0; x < panel.grid.cols; x++) {
       const tile = tiles.get(`${x},${y}`);
-      if (tile && tile.terrain !== 'empty' && !tile.blocked && !occupied.has(`${x},${y}`)) {
+      if (
+        tile &&
+        tile.terrain !== 'empty' &&
+        !tile.blocked &&
+        !monsterCells.has(`${x},${y}`) &&
+        !occupied.has(`${x},${y}`)
+      ) {
         if (!panel.spawnPoint) return { x, y, panelId: panel.id };
         const candidate = Math.abs(x - panel.spawnPoint.x) + Math.abs(y - panel.spawnPoint.y);
         if (candidate < distance) {

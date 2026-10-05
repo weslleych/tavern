@@ -28,3 +28,13 @@ export function rememberTable(credential: Credential, name: string) {
 export function sessionFor(code: string): SavedTable | undefined {
   return savedTables().find((entry) => entry.roomCode === code.toUpperCase());
 }
+export function forgetTable(code: string): void {
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify(savedTables().filter((entry) => entry.roomCode !== code.trim().toUpperCase())),
+  );
+  window.dispatchEvent(new Event('tavern:tables-changed'));
+}
+export function hasSavedSession(code: string): boolean {
+  return !!sessionFor(code.trim());
+}

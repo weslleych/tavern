@@ -10,6 +10,8 @@ import { Modal } from './ui/modal';
 import { FormSelect } from './ui/select';
 import { useClassCatalog } from '../i18n/use-class-catalog';
 import { useErrorMessage } from '../i18n/use-error-message';
+import { classAttack } from '../lib/combat';
+import type { ClassAttack, AttributeId } from '../types/game';
 
 function newDefinition(name: string): CharacterSubclass {
   return {
@@ -111,6 +113,59 @@ function TraitEditor({
   );
 }
 
+function AttackEditor({
+  value,
+  onChange,
+}: {
+  value: ClassAttack;
+  onChange: (value: ClassAttack) => void;
+}) {
+  const t = useTranslations();
+  return (
+    <fieldset className="attack-editor">
+      <legend>{t('combat.attackName')}</legend>
+      <label>
+        {t('combat.attackName')}
+        <input
+          required
+          maxLength={60}
+          value={value.name}
+          onChange={(event) => onChange({ ...value, name: event.target.value })}
+        />
+      </label>
+      <label>
+        {t('combat.attribute')}
+        <FormSelect
+          label={t('combat.attribute')}
+          value={value.attributeId}
+          onValueChange={(id) => onChange({ ...value, attributeId: id as AttributeId })}
+          options={attributeDefinitions.map(({ id }) => ({
+            value: id,
+            label: t(`classes.attributes.${id}.name`),
+          }))}
+        />
+      </label>
+      <label>
+        {t('combat.damage')}
+        <input
+          required
+          maxLength={30}
+          value={value.damageNotation}
+          onChange={(event) => onChange({ ...value, damageNotation: event.target.value })}
+        />
+      </label>
+      <label>
+        {t('combat.description')}
+        <textarea
+          maxLength={240}
+          rows={2}
+          value={value.description}
+          onChange={(event) => onChange({ ...value, description: event.target.value })}
+        />
+      </label>
+    </fieldset>
+  );
+}
 function DefinitionEditor({
   kind,
   value,
@@ -322,6 +377,11 @@ export function ClassManager({
               >
                 <Trash2 size={16} aria-hidden="true" /> {t('classes.deleteClass')}
               </button>
+              <AttackEditor
+                key={`attack-${characterClass.id}`}
+                value={classAttack(characterClass)}
+                onChange={(defaultAttack) => updateClass({ ...characterClass, defaultAttack })}
+              />
               <section className="subclass-editor" aria-label={t('classes.subclasses')}>
                 <h3>{t('classes.subclasses')}</h3>
                 <div className="class-manager-actions">

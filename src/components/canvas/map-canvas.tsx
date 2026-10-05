@@ -10,12 +10,23 @@ import {
   type PointerEvent,
 } from 'react';
 import { Crosshair, Minus, Plus, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
-import type { Panel, Terrain, Tile, Member, MapTool, MoveRequest } from '../../types/game';
-import { drawTile } from './render';
+import type {
+  PublicPanel,
+  Terrain,
+  Tile,
+  Member,
+  MapTool,
+  MoveRequest,
+  MonsterMoveRequest,
+} from '../../types/game';
+import { drawTile, drawStructure } from './render';
+import { drawMonster } from './monster-render';
+import { structureTemplates } from '../../lib/terrain';
+import { walkable } from '../../lib/characters';
 import { drawCharacter } from './character';
 
 interface Props {
-  panel: Panel;
+  panel: PublicPanel;
   terrain: Terrain;
   blocked: boolean;
   canEdit: boolean;
@@ -32,6 +43,12 @@ interface Props {
   onMove: (token: MoveRequest) => Promise<boolean>;
   onSpawn: (point: { x: number; y: number }) => Promise<boolean>;
   onFog: (cells: { x: number; y: number }[], revealed: boolean) => Promise<boolean>;
+  structureKey?: string;
+  onPlaceStructure?: (cell: { x: number; y: number }) => Promise<boolean>;
+  onInspectStructure?: (id: string) => void;
+  onInspectMonster?: (id: string) => void;
+  onSummon?: (cell: { x: number; y: number }) => Promise<boolean>;
+  onMoveMonster?: (request: MonsterMoveRequest) => Promise<boolean>;
 }
 export function MapCanvas({
   panel,
@@ -51,6 +68,12 @@ export function MapCanvas({
   onSelectMember,
   onSpawn,
   onFog,
+  structureKey,
+  onPlaceStructure,
+  onInspectStructure,
+  onInspectMonster,
+  onSummon,
+  onMoveMonster,
 }: Props) {
   const t = useTranslations();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -65,6 +88,8 @@ export function MapCanvas({
     pan: boolean;
     cell: { x: number; y: number } | null;
     memberId?: string;
+    monsterId?: string;
+    structureId?: string;
   } | null>(null);
   const frame = useRef<number | null>(null);
   const drawRef = useRef<() => void>(() => {});
@@ -73,6 +98,7 @@ export function MapCanvas({
   const moving = useRef(false);
   const sprites = useRef(new Map<string, HTMLImageElement>());
   const [spriteVersion, setSpriteVersion] = useState(0);
+  const structureTemplate = structureTemplates.find((template) => template.key === structureKey);
   const target =
     you.role === 'gm'
       ? members.find((member) => member.id === selectedMemberId && member.role === 'player')
@@ -81,6 +107,8 @@ export function MapCanvas({
   useEffect(() => {
     const sources = new Set(panel.tiles.flatMap((tile) => (tile.sprite ? [tile.sprite] : [])));
     if (sprite) sources.add(sprite);
+    for (const monster of panel.monsters ?? [])
+      if (monster.sprite.startsWith('data:')) sources.add(monster.sprite);
     for (const source of sprites.current.keys())
       if (!sources.has(source)) sprites.current.delete(source);
     let active = true;
@@ -99,7 +127,7 @@ export function MapCanvas({
     return () => {
       active = false;
     };
-  }, [panel.tiles, sprite]);
+  }, [panel.tiles, panel.monsters, sprite]);
 
   const schedule = useCallback(() => {
     if (frame.current !== null) return;
@@ -199,6 +227,15 @@ export function MapCanvas({
           ctx.stroke();
         }
       }
+    for (const anchor of panel.structures ?? [])
+      drawStructure(
+        ctx,
+        anchor.templateKey,
+        anchor.x * 32,
+        anchor.y * 32,
+        anchor.cols,
+        anchor.rows,
+      );
     if (panel.fog?.enabled) {
       const revealed = new Set(panel.fog.revealed);
       ctx.fillStyle = you.role === 'gm' ? '#172d2a70' : '#172d2a';
@@ -279,17 +316,42 @@ export function MapCanvas({
             }
           }
         }
-      if (hover.current && canEdit && (tool === 'paint' || tool === 'spawn')) {
+      for (const monster of panel.monsters ?? [])
+        drawMonster(ctx, monster, sprites.current.get(monster.sprite));
+      if (hover.current && canEdit && (tool === 'paint' || tool === 'spawn' || tool === 'summon')) {
         const { x, y } = hover.current;
         ctx.globalAlpha = 0.65;
-        if (tool === 'paint') drawTile(ctx, terrain, x * 32, y * 32, 32);
+        if (tool === 'paint' && !structureTemplate) drawTile(ctx, terrain, x * 32, y * 32, 32);
+        if (tool === 'paint' && structureTemplate)
+          drawStructure(
+            ctx,
+            structureTemplate.key,
+            x * 32,
+            y * 32,
+            structureTemplate.cols,
+            structureTemplate.rows,
+          );
         const image = sprite ? sprites.current.get(sprite) : undefined;
         if (tool === 'paint' && image?.complete && image.naturalWidth)
           ctx.drawImage(image, x * 32, y * 32, 32, 32);
         ctx.globalAlpha = 1;
-        ctx.strokeStyle = '#173f2d';
+        const cols = tool === 'paint' ? (structureTemplate?.cols ?? 1) : 1,
+          rows = tool === 'paint' ? (structureTemplate?.rows ?? 1) : 1;
+        const valid =
+          x + cols <= panel.grid.cols &&
+          y + rows <= panel.grid.rows &&
+          (tool !== 'summon' ||
+            (walkable(panel, { x, y }) &&
+              !members.some(
+                (m) => m.token?.panelId === panel.id && m.token.x === x && m.token.y === y,
+              )));
+        ctx.strokeStyle = valid ? '#278855' : '#ef4444';
+        if (structureTemplate || tool === 'summon') {
+          ctx.fillStyle = valid ? '#22c55e33' : '#ef444455';
+          ctx.fillRect(x * 32, y * 32, cols * 32, rows * 32);
+        }
         ctx.lineWidth = 2 / camera.zoom;
-        ctx.strokeRect(x * 32, y * 32, 32, 32);
+        ctx.strokeRect(x * 32, y * 32, cols * 32, rows * 32);
       }
       ctx.restore();
     };
@@ -307,6 +369,8 @@ export function MapCanvas({
     panel.spawnPoint,
     sprite,
     spriteVersion,
+    panel,
+    structureTemplate,
   ]);
 
   const cellAt = (event: PointerEvent<HTMLCanvasElement>) => {
@@ -321,6 +385,14 @@ export function MapCanvas({
     if (stroke.current.has(key)) return;
     stroke.current.add(key);
     if (tool === 'reveal' || tool === 'hide') return;
+    if (tool === 'paint' && structureTemplate) {
+      if (
+        cell.x + structureTemplate.cols <= panel.grid.cols &&
+        cell.y + structureTemplate.rows <= panel.grid.rows
+      )
+        void onPlaceStructure?.(cell);
+      return;
+    }
     if (tool === 'paint')
       onPaint({
         ...cell,
@@ -413,12 +485,24 @@ export function MapCanvas({
           )
         : undefined;
     if (!pan && canMove && hit && you.role === 'gm') onSelectMember(hit.id);
+    const monster =
+      !pan && tool === 'move' && canEdit && cell
+        ? panel.monsters?.find((m) => m.x === cell.x && m.y === cell.y)
+        : undefined;
+    const anchor =
+      !pan && tool === 'move' && canEdit && cell
+        ? panel.structures?.find(
+            (s) => cell.x >= s.x && cell.y >= s.y && cell.x < s.x + s.cols && cell.y < s.y + s.rows,
+          )
+        : undefined;
     drag.current = {
       x: event.clientX,
       y: event.clientY,
       pan,
       cell,
       memberId: hit?.id,
+      monsterId: monster?.id,
+      structureId: anchor?.id,
     };
     if (!pan && tool !== 'move') paint(cell);
   }
@@ -431,7 +515,7 @@ export function MapCanvas({
         setCamera((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
         drag.current.x = event.clientX;
         drag.current.y = event.clientY;
-      } else if (tool !== 'move' && tool !== 'spawn') {
+      } else if (tool !== 'move' && tool !== 'spawn' && tool !== 'summon' && !structureTemplate) {
         paintLine(drag.current.cell, hover.current);
         drag.current.cell = hover.current;
       }
@@ -480,6 +564,7 @@ export function MapCanvas({
       event.preventDefault();
       stroke.current.clear();
       if (tool === 'spawn' && canEdit) void onSpawn(hover.current || cursor);
+      else if (tool === 'summon' && canEdit) void onSummon?.(hover.current || cursor);
       else paint(hover.current || cursor);
       void flushFog();
     } else if (event.key === '+' || event.key === '=') zoom(1.2);
@@ -499,9 +584,30 @@ export function MapCanvas({
         onContextMenu={(event) => event.preventDefault()}
         onPointerUp={(event) => {
           const start = drag.current;
+          const cell = cellAt(event);
+          if (start && !start.pan && start.monsterId && canEdit) {
+            if (
+              cell?.x === start.cell?.x &&
+              cell?.y === start.cell?.y &&
+              Math.hypot(event.clientX - start.x, event.clientY - start.y) < 8
+            )
+              onInspectMonster?.(start.monsterId);
+            else if (cell)
+              void onMoveMonster?.({ ...cell, panelId: panel.id, monsterId: start.monsterId });
+          } else if (
+            start &&
+            !start.pan &&
+            start.structureId &&
+            !start.memberId &&
+            canEdit &&
+            Math.hypot(event.clientX - start.x, event.clientY - start.y) < 8
+          )
+            onInspectStructure?.(start.structureId);
           if (
             start &&
             !start.pan &&
+            !start.monsterId &&
+            !start.structureId &&
             tool === 'move' &&
             (start.memberId || Math.hypot(event.clientX - start.x, event.clientY - start.y) < 8)
           )
@@ -510,6 +616,7 @@ export function MapCanvas({
             const cell = cellAt(event);
             if (cell) void onSpawn(cell);
           }
+          if (start && !start.pan && tool === 'summon' && canEdit && cell) void onSummon?.(cell);
           if (start && !start.pan) void flushFog();
           drag.current = null;
           stroke.current.clear();

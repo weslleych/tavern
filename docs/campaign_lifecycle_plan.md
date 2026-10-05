@@ -2,7 +2,9 @@
 
 This plan defines the architecture, security policies, storage operations, Socket.io teardown protocols, and UI flows for managing saved campaigns in Tavern. It establishes an authoritative distinction between a Game Master (GM) permanently deleting a campaign from the server and local storage, and a Player removing/leaving a campaign from their personal browser session.
 
-Status: Planned (Phase 11).
+Status: Implemented and verified (Phase 11).
+
+The reconciled scope and cross-plan decisions are recorded in [execution checklist](expansion_execution.md).
 
 ---
 
@@ -43,29 +45,14 @@ To protect user data and ensure table integrity, campaign management implements 
   - Add `hasSavedSession(roomCode: string): boolean`.
 - `src/components/hub.tsx`:
   - Enhance `.recent-table` cards in `#your-tables` with an accessible action menu (ellipsis or direct action icons: trash icon for GM, log-out/leave icon for player).
-  - Mount `ConfirmDeleteModal` and `ConfirmLeaveModal` with keyboard focus containment, backdrop dismissal, and explicit confirmation guards.
+  - Mount `ConfirmDeleteDialog` and `ConfirmLeaveDialog` with keyboard focus containment, backdrop dismissal, and explicit confirmation guards.
 - `src/components/tabletop.tsx`:
   - Add campaign management actions inside the tabletop top navigation / room settings dropdown:
     - GM view: "Excluir Campanha / Delete Campaign" (destructive red styling).
     - Player view: "Sair da Mesa / Leave Table".
 - `src/types/game.ts`:
-  - Add `RoomDestroyedEvent: { roomCode: string; reason: 'gm_deleted' | 'expired'; message: string }`.
-  - Add `LeaveRoomRequest: { roomCode: string; memberId: string }`.
-  - Extend `ClientEvents` with `'room:delete': (ack: Ack<{ success: boolean }>) => void`.
-  - Extend `ServerEvents` with `'room:destroyed': (event: RoomDestroyedEvent) => void`.
-- `src/lib/sessions.ts`:
-  - Add `forgetTable(roomCode: string): void`: Removes a room code from `localStorage['tavern:tables:v1']`.
-  - Add `hasSavedSession(roomCode: string): boolean`.
-- `src/components/hub.tsx`:
-  - Enhance `.recent-table` cards in `#your-tables` with an accessible action menu (ellipsis or direct action icons: trash icon for GM, log-out/leave icon for player).
-  - Mount `ConfirmDeleteModal` and `ConfirmLeaveModal` with keyboard focus containment, backdrop dismissal, and explicit confirmation guards.
-- `src/components/tabletop.tsx`:
-  - Add campaign management actions inside the tabletop top navigation / room settings dropdown:
-    - GM view: "Excluir Campanha / Delete Campaign" (destructive red styling).
-    - Player view: "Sair da Mesa / Leave Table".
-- `src/types/game.ts`:
-  - Add `RoomDestroyedEvent: { roomCode: string; reason: 'gm_deleted' | 'expired'; message: string }`.
-  - Add `LeaveRoomRequest: { roomCode: string; memberId: string }`.
+  - Add `RoomDestroyedEvent: { roomCode: string; reason: 'gm_deleted'; message: string }`.
+  - Departure uses the authenticated socket seat and takes no client identity payload.
   - Extend `ClientEvents` with `'room:delete': (ack: Ack<{ success: boolean }>) => void` and `'room:leave': (ack: Ack<{ success: boolean }>) => void`.
   - Extend `ServerEvents` with `'room:destroyed': (event: RoomDestroyedEvent) => void`.
 - `src/server/game.ts`:
@@ -74,11 +61,11 @@ To protect user data and ensure table integrity, campaign management implements 
     - Purge room, panels, and sessions natively inside `this.mutate((state) => { ... })`.
     - Guarantees seamless compatibility with both `FileStore` and `MongoStore` without requiring replica-set transactions or desynchronizing `MongoStore.previous`.
   - Implement `GameService.leaveRoom(actor: Session): Promise<boolean>`:
-    - Clear player's active token (`delete session.token`) from `state.sessions`, freeing that coordinate for other players' movement.
+    - Mark the player session departed, clear its map token and revoke reconnect access, freeing that coordinate for other players' movement.
 - `src/server/gateway.ts`:
   - Socket handler for `'room:delete'`: Invokes `game.deleteRoom()`, broadcasts `'room:destroyed'` to the room channel, and disconnects all joined sockets.
   - Socket handler for `'room:leave'`: Vacates player token and broadcasts updated presence/snapshot to remaining members.
-- `server.ts`:
+- `src/server/http.ts`:
   - Add HTTP endpoint `DELETE /api/rooms/:code` with authentication headers for headless API usage.
 - `messages/{en,es,pt-BR}.json`:
   - Localized strings for deletion confirmation, leave confirmation, warning dialogs, and toast notifications.
@@ -119,7 +106,7 @@ sequenceDiagram
 
 #### High-Stakes Confirmation Guardrail
 
-Deleting a campaign is catastrophic if done accidentally. The GM confirmation modal (`ConfirmDeleteModal`) requires:
+Deleting a campaign is catastrophic if done accidentally. The GM confirmation modal (`ConfirmDeleteDialog`) requires:
 
 1. Prominent warning text explaining that all scenes, player characters, notes, and dice rolls will be wiped permanently.
 2. An input verification field where the GM must type either the **exact Room Code** (e.g., `TVRN-W7K9P2`) or the localized keyword **`EXCLUIR`** before the destructive action button enables.
@@ -187,7 +174,7 @@ async deleteRoom(member: Session, roomCode: string): Promise<boolean> {
      ```
    - Automatically and safely issues `deleteMany` across `rooms`, `panels`, and `sessions`.
    - Avoids calling `session.withTransaction()`, which fails catastrophically on standard standalone MongoDB instances.
-   - Preserves `MongoStore.previous` cache integrity without any risk of desynchronization.
+   - Preserves `MongoStore.previous` cache integrity after successful writes; interrupted MongoDB writes retain the existing retry/recovery limitations.
 
 ---
 
@@ -195,14 +182,14 @@ async deleteRoom(member: Session, roomCode: string): Promise<boolean> {
 
 ### 5.1 Authorization & Cryptographic Checks
 
-- **Role Verification**: The gateway checks the caller's persisted `Session.tokenHash` against `Room.gmId`. Client-supplied claims are ignored.
+- **Role Verification**: The gateway checks the caller's persisted `Session.tokenHash` against the supplied bearer credential and ownership against `Room.gmId`. Client-supplied claims are ignored.
 - **Cross-Room Protection**: A GM from room A cannot pass credentials to delete room B. Target room code must match the actor's authenticated room.
 - **Anti-Brute Force**: Deletion requests are rate-limited under the same strict HTTP rate-limiting rules (max 10 requests per minute).
 
 ### 5.2 Edge Cases Handled
 
-1. **Player Offline During Deletion**: If a player is offline when the GM deletes the room, the next time they open the Hub, the room still exists in their `localStorage`. However, if they click it, the join request receives `404 Room Not Found`. The client gracefully detects this response, calls `forgetTable(roomCode)`, and notifies the user: _"Esta campanha não existe mais e foi removida das suas mesas salvas."_
-2. **Concurrent Deletion & Painting**: If another user attempts to paint or roll dice at the exact moment the room is deleted, `GameService.mutate` processes the deletion first; subsequent operations fail cleanly with `ROOM_NOT_FOUND`.
+1. **Player Offline During Deletion**: If a player is offline when the GM deletes the room, the next time they open the Hub, the room still exists in their `localStorage`. However, if they click it, the saved-room existence check or socket handshake reports `ROOM_NOT_FOUND`. The client gracefully detects this response, calls `forgetTable(roomCode)`, and notifies the user: _"Esta campanha não existe mais e foi removida das suas mesas salvas."_
+2. **Concurrent Deletion & Painting**: If another user attempts to paint or roll dice at the exact moment the room is deleted, `GameService.mutate` serializes both operations; operations queued after deletion fail cleanly with `ROOM_NOT_FOUND`.
 3. **Token Vacuum / Collision Cleanup**: When a player uses "Sair da Mesa", their token (`session.token`) is immediately removed from `state.sessions`, vacating their coordinate so it is instantly walkable again for remaining players.
 
 ---
@@ -211,33 +198,33 @@ async deleteRoom(member: Session, roomCode: string): Promise<boolean> {
 
 ### Phase 11.1: Local Storage Helper & Hub UI
 
-- [ ] Add `forgetTable` in `src/lib/sessions.ts`.
-- [ ] Update `hub.tsx` to render action buttons on `.recent-table` cards:
+- [x] Add `forgetTable` in `src/lib/sessions.ts`.
+- [x] Update `hub.tsx` to render action buttons on `.recent-table` cards:
   - GM cards: Red trash button (`Excluir`).
   - Player cards: Dismiss/leave button (`Remover`).
-- [ ] Create `ConfirmDeleteDialog` and `ConfirmLeaveDialog` components with full accessibility (ARIA, focus trap, Escape key).
+- [x] Create `ConfirmDeleteDialog` and `ConfirmLeaveDialog` components with full accessibility (ARIA, focus trap, Escape key).
 
 ### Phase 11.2: Server Store & GameService Logic
 
-- [ ] Implement `GameService.deleteRoom` inside `this.mutate`, cascade-clearing rooms, panels, and sessions without altering `GameStore` interface.
-- [ ] Implement `GameService.leaveRoom` to safely clear player `session.token` and vacate collision.
+- [x] Implement `GameService.deleteRoom` inside `this.mutate`, cascade-clearing rooms, panels, and sessions without altering `GameStore` interface.
+- [x] Implement `GameService.leaveRoom` to safely clear player `session.token` and vacate collision.
 
 ### Phase 11.3: Gateway & Socket.io Handlers
 
-- [ ] Add `room:delete` socket handler with acknowledgement.
-- [ ] Broadcast `room:destroyed` to the room channel.
-- [ ] Client-side listener for `room:destroyed` in `use-room.ts` that triggers `forgetTable`, shows toast, and navigates home.
+- [x] Add `room:delete` socket handler with acknowledgement.
+- [x] Broadcast `room:destroyed` to the room channel.
+- [x] Client-side listener for `room:destroyed` in `use-room.ts` that triggers `forgetTable`, shows toast, and navigates home.
 
 ### Phase 11.4: Tabletop Room Settings Integration
 
-- [ ] Add room actions dropdown in `src/components/tabletop.tsx` topbar.
-- [ ] Provide "Sair da Mesa" for players and "Excluir Campanha" for GM.
+- [x] Add room actions dropdown in `src/components/tabletop.tsx` topbar.
+- [x] Provide "Sair da Mesa" for players and "Excluir Campanha" for GM.
 
 ### Phase 11.5: Automated Verification & Regressions
 
-- [ ] Unit tests for `GameService.deleteRoom` ensuring atomic cascade delete across rooms, panels, and sessions with zero orphans.
-- [ ] Security tests ensuring non-GM sessions cannot invoke deletion.
-- [ ] Playwright E2E tests:
+- [x] Unit tests for `GameService.deleteRoom` ensuring atomic cascade delete across rooms, panels, and sessions with zero orphans.
+- [x] Security tests ensuring non-GM sessions cannot invoke deletion.
+- [x] Playwright E2E tests:
   - GM deletes room -> player browser immediately receives broadcast, leaves room, and table disappears from both Hubs.
   - Player removes room from Hub -> only player's Hub is updated; GM and other players remain unaffected.
 
@@ -250,3 +237,5 @@ async deleteRoom(member: Session, roomCode: string): Promise<boolean> {
 3. **Linter**: `npm run lint` clean.
 4. **Browser E2E Suite**: `npx playwright test tests/e2e/campaign-lifecycle.spec.ts` passes.
 5. **Production Build**: `npm run build` succeeds.
+
+Verified on 2026-10-04: all 86 unit/domain/integration tests and 36 browser tests pass, together with TypeScript, ESLint, formatting and the production build. See the [execution evidence](expansion_execution.md). Live MongoDB integration was not run because `MONGODB_TEST_URI` is not configured.

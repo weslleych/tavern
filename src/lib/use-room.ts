@@ -1,7 +1,8 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { io, type Socket } from 'socket.io-client';
-import { rememberTable, sessionFor } from './sessions';
+import { forgetTable, hasSavedSession, rememberTable, sessionFor } from './sessions';
 import type {
   ClientEvents,
   Reply,
@@ -16,18 +17,32 @@ import type {
   FogRequest,
   CharacterClass,
   HealthAdjustmentRequest,
+  StructureRequest,
+  PoiConfiguration,
+  MonsterDefinition,
+  SummonMonsterRequest,
+  MonsterMoveRequest,
+  MonsterHealthRequest,
+  MonsterVisibilityRequest,
+  MonsterReference,
+  PlayerAttackRequest,
+  MonsterAttackRequest,
 } from '../types/game';
 
 export function useRoom(code: string) {
+  const router = useRouter();
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [status, setStatus] = useState('Connecting');
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [pending, setPending] = useState(0);
   const [rollAnimations, setRollAnimations] = useState<Record<string, number>>({});
+  const [combatTransition, setCombatTransition] = useState<'enter' | 'exit' | null>(null);
   const socket = useRef<Socket<ServerEvents, ClientEvents> | null>(null);
   const paintQueue = useRef(new Map<string, Tile>());
   const paintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const current = useRef<Snapshot | null>(null);
+  const finishCombatTransition = useCallback(() => setCombatTransition(null), []);
 
   useEffect(() => {
     const warnIfUnsaved = (event: BeforeUnloadEvent) => {
@@ -44,6 +59,21 @@ export function useRoom(code: string) {
     let active = true;
     const queuedPaint = paintQueue.current;
     let connection: Socket<ServerEvents, ClientEvents> | undefined;
+    const returnToHub = (reason: 'deleted' | 'left' | 'missing') => {
+      if (!active) return;
+      active = false;
+      try {
+        forgetTable(code);
+        sessionStorage.setItem('tavern:lifecycle-notice', reason);
+      } catch {}
+      connection?.disconnect();
+      router.replace('/');
+    };
+    const checkSavedSession = () => {
+      if (connection && !hasSavedSession(code)) returnToHub('left');
+    };
+    window.addEventListener('storage', checkSavedSession);
+    window.addEventListener('tavern:tables-changed', checkSavedSession);
     Promise.resolve().then(() => {
       if (!active) return;
       const credential = sessionFor(code);
@@ -55,6 +85,8 @@ export function useRoom(code: string) {
       connection = io({ auth: credential, transports: ['websocket', 'polling'] });
       socket.current = connection;
       connection.on('room:snapshot', (data) => {
+        if (current.current?.room.activeCombat && !data.room.activeCombat)
+          setCombatTransition('exit');
         current.current = data;
         setSnapshot(data);
         setStatus('Connected');
@@ -65,6 +97,13 @@ export function useRoom(code: string) {
           /* The active session can continue if storage becomes unavailable. */
         }
       });
+      connection.on('room:destroyed', () => returnToHub('deleted'));
+      connection.on('session:ended', () => returnToHub('left'));
+      connection.on('combat:started', () => setCombatTransition('enter'));
+      connection.on('combat:ended', () => setCombatTransition('exit'));
+      connection.on('poi:unlinked', () =>
+        setNotice('This point of interest has no linked destination scene.'),
+      );
       connection.on('room:presence', (members) =>
         setSnapshot((previous) =>
           previous
@@ -135,6 +174,10 @@ export function useRoom(code: string) {
         paintQueue.current.clear();
       });
       connection.on('connect_error', (error) => {
+        if ((error as Error & { data?: { code: string } }).data?.code === 'ROOM_NOT_FOUND') {
+          returnToHub('missing');
+          return;
+        }
         setStatus(error.message.includes('session') ? 'Session expired' : 'Reconnecting');
         setError(
           error.message.includes('session')
@@ -145,12 +188,14 @@ export function useRoom(code: string) {
     });
     return () => {
       active = false;
+      window.removeEventListener('storage', checkSavedSession);
+      window.removeEventListener('tavern:tables-changed', checkSavedSession);
       connection?.disconnect();
       socket.current = null;
       if (paintTimer.current) clearTimeout(paintTimer.current);
       queuedPaint.clear();
     };
-  }, [code]);
+  }, [code, router]);
 
   async function perform<T>(
     action: (connection: Socket<ServerEvents, ClientEvents>) => Promise<Reply<T>>,
@@ -202,8 +247,61 @@ export function useRoom(code: string) {
     error,
     pending,
     rollAnimations,
+    combatTransition,
+    notice,
+    finishCombatTransition,
     paint,
-    clearError: () => setError(''),
+    placeStructure: (request: StructureRequest) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('structure:place', request)),
+    configurePoi: (request: PoiConfiguration) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('poi:configure', request)),
+    voteTravel: (voteId: string, accept: boolean) =>
+      perform((connection) =>
+        connection.timeout(10000).emitWithAck('poi:vote', { voteId, accept }),
+      ),
+    decideTravel: (voteId: string, approved: boolean) =>
+      perform((connection) =>
+        connection.timeout(10000).emitWithAck('poi:gm_decide', { voteId, approved }),
+      ),
+    deleteRoom: () => perform((connection) => connection.timeout(10000).emitWithAck('room:delete')),
+    leaveRoom: () => perform((connection) => connection.timeout(10000).emitWithAck('room:leave')),
+    saveMonsterDefinition: (request: MonsterDefinition) =>
+      perform((connection) =>
+        connection.timeout(10000).emitWithAck('monster:save_definition', request),
+      ),
+    deleteMonsterDefinition: (id: string) =>
+      perform((connection) =>
+        connection.timeout(10000).emitWithAck('monster:delete_definition', id),
+      ),
+    summonMonster: (request: SummonMonsterRequest) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('monster:summon', request)),
+    moveMonster: (request: MonsterMoveRequest) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('monster:move', request)),
+    adjustMonsterHp: (request: MonsterHealthRequest) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('monster:adjust_hp', request)),
+    setMonsterVisibility: (request: MonsterVisibilityRequest) =>
+      perform((connection) =>
+        connection.timeout(10000).emitWithAck('monster:set_visibility', request),
+      ),
+    removeMonster: (request: MonsterReference) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('monster:remove', request)),
+    startCombat: (request: MonsterReference) =>
+      perform((connection) => connection.timeout(10000).emitWithAck('combat:start', request)),
+    playerAttack: (request: PlayerAttackRequest) =>
+      perform((connection) =>
+        connection.timeout(10000).emitWithAck('combat:attack_player', request),
+      ),
+    monsterAttack: (request: MonsterAttackRequest) =>
+      perform((connection) =>
+        connection.timeout(10000).emitWithAck('combat:attack_monster', request),
+      ),
+    nextCombatTurn: () =>
+      perform((connection) => connection.timeout(10000).emitWithAck('combat:next_turn')),
+    endCombat: () => perform((connection) => connection.timeout(10000).emitWithAck('combat:end')),
+    clearError: () => {
+      setError('');
+      setNotice('');
+    },
     updateClasses: (classes: CharacterClass[]) =>
       perform((connection) => connection.timeout(10000).emitWithAck('room:classes', { classes })),
     changePanel: (id: string) =>

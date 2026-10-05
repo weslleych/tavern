@@ -2,7 +2,9 @@
 
 This plan defines the architecture, animation pipeline, turn-based initiative engine, class attack catalogs, and Game Master (GM) targeting controls for Tavern's dedicated Combat View. Inspired by classic turn-based JRPGs (_Chrono Trigger_, _Final Fantasy_, _Dragon Quest_) and tabletop RPG combat encounters, this system allows the GM to transition the entire table from freeform exploration into a high-stakes tactical battle arena.
 
-Status: Planned (Phase 13).
+Status: Implemented and verified (Phase 13).
+
+The reconciled scope and cross-plan decisions are recorded in [execution checklist](expansion_execution.md).
 
 ---
 
@@ -20,7 +22,7 @@ Key design tenets:
    - **Left**: Party members arranged vertically, facing right, displaying their custom pixel-art portraits, class badges, and active HP bars.
    - **Right**: The adversary / monster positioned prominently, facing left.
 4. **d20 Initiative Round**: At the start of combat (and subsequent rounds), all participants roll a d20 (modified by Dexterity) to determine the action queue.
-5. **Class-Specific Player Attacks & GM-Targeted 1d12 Monster Attacks**: Each hero class possesses an initial default thematic attack (fully editable by the GM). The monster rolls a default `1d12` (customizable by the GM), and the GM explicitly chooses which adventurer the monster strikes.
+5. **Class-Specific Player Attacks & GM-Targeted 1d12 Monster Attacks**: Each hero class possesses an initial default thematic attack (fully editable by the GM). New custom monsters default to `1d12`; preset monsters retain their bestiary formulas (all customizable by the GM), and the GM explicitly chooses which adventurer the monster strikes.
 
 ---
 
@@ -170,7 +172,7 @@ In `src/components/class-manager.tsx`:
 - The GM can edit each class's attack:
   - Attack Name (e.g. rename _Golpe Poderoso_ to _Lâmina Sagrada_).
   - Governing Attribute (`forca`, `destreza`, `inteligencia`, `sabedoria`, `constituicao`, `carisma`).
-  - Damage Dice Notation (validated with `dice-notation.ts`, e.g. `1d8 + FOR`, `2d6 + FOR`, `1d10`).
+  - Damage Dice Notation (validated numeric notation with `dice-notation.ts`, e.g. `1d8`, `2d6`, `1d10`; the governing attribute is added separately by the server).
   - Description.
 
 ### 5.3 Player Attack Execution Flow
@@ -190,7 +192,7 @@ In `src/components/class-manager.tsx`:
 
 ### 6.1 Attack Mechanics & Defaults
 
-- **Default Dice Notation**: Every monster rolls **`1d12`** for attack damage by default, as specified.
+- **Default Dice Notation**: New custom monsters use **`1d12`**; existing bestiary presets preserve their thematic formulas. The GM can override either.
 - **GM Customization**: The GM can override this formula per monster definition (e.g. `2d6`, `1d10+3`, `2d12`).
 - **Target Selection**: The GM explicitly chooses which living adventurer the monster attacks.
 
@@ -256,11 +258,7 @@ export interface CombatParticipant {
   name: string;
   initiative: number;
   dexterityModifier: number;
-  currentHp: number;
-  maxHp: number;
-  hpVisibility?: HpVisibility;
-  sprite?: string;
-  appearance?: CharacterAppearance;
+  // HP/appearance are read from canonical sessions and redacted monster snapshots.
 }
 
 export interface ActiveCombatState {
@@ -270,7 +268,9 @@ export interface ActiveCombatState {
   round: number; // Current round (1, 2, ...)
   turnIndex: number; // Index in turnQueue
   turnQueue: CombatParticipant[];
-  status: 'transitioning' | 'active' | 'resolved';
+  partyIds: string[];
+  status: 'active' | 'resolved';
+  lastAction?: CombatEffect;
 }
 
 // Extension to Room
@@ -296,39 +296,39 @@ export interface Room {
 
 ### Phase 13.1: Attack Catalog & Domain Types
 
-- [ ] Define `ClassAttack`, `CombatParticipant`, and `ActiveCombatState` in `src/types/game.ts`.
-- [ ] Add default attacks to `defaultClasses` in `src/lib/classes.ts`.
-- [ ] Add Zod schemas in `src/lib/validation.ts` for attack definitions and combat actions.
-- [ ] Expose attack customization fields inside `class-manager.tsx`.
+- [x] Define `ClassAttack`, `CombatParticipant`, and `ActiveCombatState` in `src/types/game.ts`.
+- [x] Add default attacks to `defaultClasses` in `src/lib/classes.ts`.
+- [x] Add Zod schemas in `src/lib/validation.ts` for attack definitions and combat actions.
+- [x] Expose attack customization fields inside `class-manager.tsx`.
 
 ### Phase 13.2: Authoritative Server Combat Engine
 
-- [ ] Implement `startCombat`, `rollInitiative`, `executePlayerAttack`, `executeMonsterAttack`, and `endCombat` in `GameService`.
-- [ ] Integrate dice rolls with existing authoritative `rollDice` engine so combat attacks appear in shared history.
-- [ ] Authoritatively synchronize health updates across `session.health` and `monster.currentHp`.
+- [x] Implement `startCombat`, `rollInitiative`, `executePlayerAttack`, `executeMonsterAttack`, and `endCombat` in `GameService`.
+- [x] Integrate dice rolls with existing authoritative `rollDice` engine so combat attacks appear in shared history.
+- [x] Authoritatively synchronize health updates across `session.health` and `monster.currentHp`.
 
 ### Phase 13.3: Socket Gateway & Client State Hook
 
-- [ ] Add gateway event handlers in `src/server/gateway.ts`.
-- [ ] Extend `use-room.ts` with combat actions and re-synchronization on reconnect.
+- [x] Add gateway event handlers in `src/server/gateway.ts`.
+- [x] Extend `use-room.ts` with combat actions and re-synchronization on reconnect.
 
 ### Phase 13.4: Transition Wipe Animation & Arena Layout
 
-- [ ] Create `CombatTransitionWipe` component with shutter/iris CSS animation and reduced-motion fallbacks.
-- [ ] Create `CombatArena` component with party column (left), monster column (right), and initiative tracker (top).
-- [ ] Connect dynamic terrain backdrops based on current scene terrain.
+- [x] Create `CombatTransitionWipe` component with shutter/iris CSS animation and reduced-motion fallbacks.
+- [x] Create `CombatArena` component with party column (left), monster column (right), and initiative tracker (top).
+- [x] Connect dynamic terrain backdrops based on current scene terrain.
 
 ### Phase 13.5: Action Docks & GM Targeting Interface
 
-- [ ] Build player Action Dock with class attack trigger and visual attack animations.
-- [ ] Build GM Monster Action Dock with player target picker and `1d12` roll execution.
-- [ ] Implement victory screen and return-to-map transition.
+- [x] Build player Action Dock with class attack trigger and visual attack animations.
+- [x] Build GM Monster Action Dock with player target picker and configured damage notation (`1d12` for new custom monsters).
+- [x] Implement victory screen and return-to-map transition.
 
 ### Phase 13.6: Automated Verification & Regressions
 
-- [ ] Unit tests for initiative sorting, tie-breaking, and turn advancing.
-- [ ] Tests verifying players cannot trigger monster attacks or forge attacks out of turn.
-- [ ] Playwright E2E tests:
+- [x] Unit tests for initiative sorting, tie-breaking, and turn advancing.
+- [x] Tests verifying players cannot trigger monster attacks or forge attacks out of turn.
+- [x] Playwright E2E tests:
   - GM summons monster and triggers Combat View.
   - Battle wipe animation plays, arena displays party on left and monster on right.
   - Initiative rolls resolve; player attacks monster, GM selects player target and rolls monster 1d12.
@@ -343,3 +343,5 @@ export interface Room {
 3. **Linter**: `npm run lint` passes without warnings.
 4. **Browser E2E Suite**: `npx playwright test tests/e2e/combat-view.spec.ts` passes.
 5. **Production Build**: `npm run build` succeeds cleanly.
+
+Verified on 2026-10-04: all 86 unit/domain/integration tests and 36 browser tests pass, together with TypeScript, ESLint, formatting and the production build. See the [execution evidence](expansion_execution.md). Live MongoDB integration was not run because `MONGODB_TEST_URI` is not configured.

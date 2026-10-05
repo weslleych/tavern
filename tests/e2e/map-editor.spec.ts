@@ -76,18 +76,19 @@ test('64×64 tools keep canvas bounds and exact camera; resizes preserve the wor
     expect(await view(page)).toEqual(chosen);
     await expect(page.locator('.zoom-controls')).toHaveText(zoomLabel);
   }
+  // Canvas matrices use single precision; compare resizes within 0.001 world pixels.
   const originalCenter = center(chosen);
   await page.getByRole('button', { name: 'Close dice', exact: true }).click();
   const expanded = await view(page);
   expect(expanded.width).toBeGreaterThan(chosen.width);
   expect(expanded.zoom).toBe(chosen.zoom);
-  expect(center(expanded).x).toBeCloseTo(originalCenter.x, 5);
-  expect(center(expanded).y).toBeCloseTo(originalCenter.y, 5);
+  expect(center(expanded).x).toBeCloseTo(originalCenter.x, 3);
+  expect(center(expanded).y).toBeCloseTo(originalCenter.y, 3);
   await page.setViewportSize({ width: 1180, height: 840 });
   const resized = await view(page);
   expect(resized.zoom).toBe(chosen.zoom);
-  expect(center(resized).x).toBeCloseTo(originalCenter.x, 5);
-  expect(center(resized).y).toBeCloseTo(originalCenter.y, 5);
+  expect(center(resized).x).toBeCloseTo(originalCenter.x, 3);
+  expect(center(resized).y).toBeCloseTo(originalCenter.y, 3);
   // A transient hidden layout must not destroy the initialized camera.
   await page.locator('.map-workspace').evaluate((workspace) => {
     (workspace as HTMLElement).style.display = 'none';
@@ -153,8 +154,8 @@ test('right and middle drags pan without painting, setting spawn, changing fog o
     const start = sent.length;
     await drag(page, 'right', 48, 24);
     const after = await view(page);
-    expect(after.x).toBeCloseTo(before.x + 48, 5);
-    expect(after.y).toBeCloseTo(before.y + 24, 5);
+    expect(after.x).toBeCloseTo(before.x + 48, 3);
+    expect(after.y).toBeCloseTo(before.y + 24, 3);
     expect(after.zoom).toBe(before.zoom);
     expect(
       sent
@@ -169,8 +170,8 @@ test('right and middle drags pan without painting, setting spawn, changing fog o
   const before = await view(page);
   await drag(page, 'middle', -48, -24);
   const after = await view(page);
-  expect(after.x).toBeCloseTo(before.x - 48, 5);
-  expect(after.y).toBeCloseTo(before.y - 24, 5);
+  expect(after.x).toBeCloseTo(before.x - 48, 3);
+  expect(after.y).toBeCloseTo(before.y - 24, 3);
   expect(
     await page
       .getByLabel('Map canvas')

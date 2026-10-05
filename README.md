@@ -20,7 +20,8 @@ Open [localhost:3000](http://localhost:3000). No database setup is needed: maps 
 - Use the interface in English, Brazilian Portuguese, or Spanish, with an independent language preference for each browser and unchanged invite URLs.
 - Create a table as its GM, join by code or invite, and return from the same browser.
 - Create, rename, order, duplicate, and remove scenes; keep 1–30 per table and switch the whole party between them.
-- Paint nine terrain types, erase, and mark blocked tiles on configurable 5–64 column/row maps; add optional PNG sprites.
+- Paint categorized world, city, dungeon, and tavern terrain on configurable 5–64 column/row maps, with original pixel sprites and optional PNG tiles.
+- Stamp 2×2 buildings and 3×3 landmarks. Link landmark entrances to scenes or generate town/dungeon destinations; travel requires a player majority and GM approval.
 - Pan, zoom, fit, and paint with mouse, touch, or keyboard. Floating map controls preserve the canvas area, and zoom/focus persist across tool changes and resizes.
 - Start with an empty canvas or a generated woodland clearing.
 - See live party presence, confirmed map edits, and automatic reconnect.
@@ -35,6 +36,9 @@ Open [localhost:3000](http://localhost:3000). No database setup is needed: maps 
 - Spawn near the preferred point (first free tile when unset) and move with WASD, arrows, adjacent clicks, token drops, or touch controls; the server enforces collisions.
 - Roll shared dice using RPG notation or six quick-roll buttons, with a saved 20-roll sidebar, author badges, individual faces, and a short retro animation. On mobile, open the dice drawer from the toolbar.
 - Reveal/hide terrain with GM-controlled fog of war.
+- Summon eight preset monsters or create custom monsters with attributes, damage formulas and 32×32 PNG sprites. Move them, adjust HP and choose hidden, bar-only or public health.
+- Enter an optional combat arena with terrain backdrops, initiative rerolled each round, editable class attacks, GM target selection, shared dice results and persistent health.
+- Delete campaigns with a room-code confirmation, leave an active seat, or remove saved tables from the browser.
 
 Private session credentials live in browser local storage. **Keep the GM's browser data:** clearing it removes GM access. Invites grant player access; they never share the GM credential. There are no accounts or recovery flow in this MVP.
 
@@ -44,6 +48,10 @@ Private session credentials live in browser local storage. **Keep the GM's brows
 | -------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Paint          | Click or drag; `B` selects the brush                                                                                 |
 | Select terrain | `1`–`9`, then `0` for Flowers                                                                                        |
+| Palette tabs   | Focus a tab and use left/right arrows; terrain shortcuts return to World                                             |
+| Structures     | Select a building/landmark brush, then click or use arrows + Enter to stamp the full footprint                       |
+| Inspect        | GM Move tool + click a landmark/monster, or use its sidebar inspection button                                        |
+| Summon         | GM opens Bestiary, chooses Summon, then selects a free map tile                                                      |
 | Pan            | Hand tool (`H`), Alt-drag, or right-/middle-button drag with any tool                                                |
 | Zoom           | Scroll, `+` / `−`, or viewport buttons                                                                               |
 | Keyboard paint | Focus the canvas, use arrows, then Enter or Space                                                                    |
@@ -54,6 +62,8 @@ Private session credentials live in browser local storage. **Keep the GM's brows
 | Dice           | Type `d20`, `2d6+3` or `1d12-2` in the dice log and press Enter, or tap a quick die; toggle the log from the toolbar |
 
 Only the GM edits maps, chooses scenes, and controls fog. Players move their own character one tile at a time when the GM permits it, onto non-empty, unblocked, unoccupied revealed terrain. The GM may reposition players at any distance or behind fog, including while movement is paused. Ordinary collision refusals do not display alerts. Empty or full scenes retain the character with no token until a free tile becomes available.
+
+Living monsters reserve their map tile; defeated monsters permit passage. During an encounter, map movement pauses until the GM returns the party to exploration. Campaign deletion removes every scene and private seat; map exports include structures but do not back up campaign access, monsters, or combat.
 
 ## Development
 

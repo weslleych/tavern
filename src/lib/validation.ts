@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { terrains } from '../types/game';
 import { skinColors, dyeColors, pantsColors } from './characters';
+import { parseDiceNotation } from './dice-notation';
+import { structureTemplates } from './terrain';
 
 const classIdSchema = z
   .string()
@@ -64,8 +66,24 @@ export const subclassSchema = z
     debuffs: traitsSchema,
   })
   .strict();
+export const attackNotationSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(30)
+  .refine((value) => !!parseDiceNotation(value), 'Enter valid dice notation.');
+export const classAttackSchema = z
+  .object({
+    id: classIdSchema,
+    name: z.string().trim().min(1).max(60),
+    description: z.string().trim().max(240),
+    attributeId: attributeIdSchema,
+    damageNotation: attackNotationSchema,
+  })
+  .strict();
 export const classSchema = subclassSchema.extend({
   subclasses: z.array(subclassSchema).max(8).refine(uniqueIds, 'Subclass IDs must be unique.'),
+  defaultAttack: classAttackSchema.optional(),
 });
 export const classesSchema = z
   .array(classSchema)
@@ -216,6 +234,8 @@ export const tileSchema = z.object({
   terrain: z.enum(terrains),
   blocked: z.boolean(),
   sprite: spriteSchema.optional(),
+  structureId: z.string().uuid().optional(),
+  structureRoot: z.boolean().optional(),
 });
 export const paintSchema = z.object({
   panelId: z.string().uuid(),
@@ -228,12 +248,135 @@ export const sceneSchema = z.object({
   template: z.enum(['blank', 'woodland']),
 });
 export const renameSchema = z.object({ panelId: z.string().uuid(), name });
+export const structureAnchorSchema = z
+  .object({
+    id: z.string().uuid(),
+    templateKey: z
+      .string()
+      .refine((value) => structureTemplates.some((t) => t.key === value), 'Unknown structure.'),
+    category: z.enum(['world', 'city', 'dungeon', 'interior']),
+    x: z.number().int().min(0).max(63),
+    y: z.number().int().min(0).max(63),
+    cols: z.number().int().min(2).max(3),
+    rows: z.number().int().min(2).max(3),
+    entranceOffset: z.object({
+      dx: z.number().int().min(0).max(2),
+      dy: z.number().int().min(0).max(2),
+    }),
+    name: z.string().trim().min(1).max(60).optional(),
+    targetPanelId: z.string().uuid().optional(),
+  })
+  .strict();
 export const importSchema = z.object({
   version: z.literal(1),
   name,
   grid: gridSchema,
   tiles: z.array(tileSchema).max(4096),
+  structures: z.array(structureAnchorSchema).max(1024).optional(),
 });
+const coordinateSchema = z.number().int().min(0).max(63);
+export const structureRequestSchema = z
+  .object({
+    panelId: panelIdSchema,
+    templateKey: z
+      .string()
+      .refine((value) => structureTemplates.some((t) => t.key === value), 'Unknown structure.'),
+    x: coordinateSchema,
+    y: coordinateSchema,
+  })
+  .strict();
+export const poiConfigurationSchema = z
+  .object({
+    panelId: panelIdSchema,
+    structureId: z.string().uuid(),
+    name: z.string().trim().min(1).max(60),
+    targetPanelId: panelIdSchema.nullable().optional(),
+    createTemplate: z.enum(['town', 'dungeon']).optional(),
+  })
+  .strict()
+  .refine(
+    (data) => !data.createTemplate || !data.targetPanelId,
+    'Choose a destination or create a scene.',
+  );
+export const poiVoteSchema = z.object({ voteId: z.string().uuid(), accept: z.boolean() }).strict();
+export const poiDecisionSchema = z
+  .object({ voteId: z.string().uuid(), approved: z.boolean() })
+  .strict();
+export const hpVisibilitySchema = z.enum(['gm_only', 'bar_only', 'public']);
+export const monsterSpriteSchema = z.union([
+  z.enum(['bat', 'bandit', 'zombie', 'skeleton', 'slime', 'spider', 'goblin', 'dragon']),
+  spriteSchema.refine((value) => {
+    try {
+      const bytes = Uint8Array.from(atob(value.split(',')[1] ?? ''), (char) => char.charCodeAt(0));
+      if (bytes.length < 24) return false;
+      const view = new DataView(bytes.buffer);
+      return view.getUint32(16) === 32 && view.getUint32(20) === 32;
+    } catch {
+      return false;
+    }
+  }, 'Choose a 32 × 32 PNG sprite.'),
+]);
+export const monsterDefinitionSchema = z
+  .object({
+    id: classIdSchema,
+    name: z.string().trim().min(1).max(60),
+    sprite: monsterSpriteSchema,
+    attributes: attributesSchema,
+    defaultMaxHp: z.number().int().min(1).max(9999),
+    attackNotation: attackNotationSchema,
+    hpVisibility: hpVisibilitySchema,
+    isCustom: z.boolean().optional(),
+  })
+  .strict();
+export const summonMonsterSchema = z
+  .object({
+    panelId: panelIdSchema,
+    definitionId: classIdSchema,
+    name: z.string().trim().min(1).max(60).optional(),
+    x: coordinateSchema,
+    y: coordinateSchema,
+    customOverrides: z
+      .object({
+        maxHp: z.number().int().min(1).max(9999).optional(),
+        attributes: attributesSchema.optional(),
+        hpVisibility: hpVisibilitySchema.optional(),
+        attackNotation: attackNotationSchema.optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+export const monsterReferenceSchema = z
+  .object({ panelId: panelIdSchema, monsterId: z.string().uuid() })
+  .strict();
+export const moveMonsterSchema = monsterReferenceSchema.extend({
+  x: coordinateSchema,
+  y: coordinateSchema,
+});
+export const setMonsterVisibilitySchema = monsterReferenceSchema.extend({
+  hpVisibility: hpVisibilitySchema,
+});
+export const adjustMonsterHpSchema = monsterReferenceSchema
+  .extend({
+    current: z.number().int().min(0).max(9999).optional(),
+    delta: z.number().int().min(-9999).max(9999).optional(),
+    gmBonusHp: z.number().int().min(-9998).max(9998).optional(),
+  })
+  .refine(
+    (data) =>
+      data.current !== undefined || data.delta !== undefined || data.gmBonusHp !== undefined,
+    'Provide an HP change.',
+  )
+  .refine(
+    (data) => data.current === undefined || data.delta === undefined,
+    'Choose current HP or a delta.',
+  );
+export const playerAttackSchema = z
+  .object({ targetMonsterId: z.string().uuid(), attackId: classIdSchema })
+  .strict();
+export const monsterAttackSchema = z
+  .object({ targetMemberId: z.string().uuid(), damageNotation: attackNotationSchema.optional() })
+  .strict();
 export function readableError(error: unknown): string {
   if (error instanceof z.ZodError) return error.issues[0]?.message || 'Check the supplied data.';
   if (error instanceof Error) return error.message;

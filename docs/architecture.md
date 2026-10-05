@@ -37,15 +37,33 @@ The gateway joins sockets to `room:<UUID>` and broadcasts within that room. Pres
 
 No accounts, token expiry, recovery, or GM transfer exist yet. Losing the creator's browser data loses GM access. Codes are intended for invited friends. Production requires HTTPS for credentials and clipboard access.
 
+Explicit departure marks the persisted player session `departed` and removes its map token. That credential can no longer reconnect, and later scene changes cannot respawn it. Removing a saved Hub card only changes that browser's saved list. GM campaign deletion filters the room, its scenes, and sessions in one serialized mutation; dice history disappears with the room. Only after a successful save does the gateway notify and disconnect every connected seat. Missing-room reconnects carry `ROOM_NOT_FOUND` so offline clients can discard stale credentials.
+
+## World structures, monsters and encounters
+
+Structure placement uses trusted 2×2/3×3 templates. The server writes a complete anchor and footprint atomically, validates bounds, and removes the entire structure when any child is erased or overwritten. Destination deletion unlinks incoming POIs. Portable imports regenerate anchor IDs and discard destination links belonging to the source room.
+
+A confirmed player move onto a linked entrance opens a 30-second vote. The electorate is the deduplicated set of online player seats at entry, including players still creating characters. Strictly more than half must vote yes, and the GM must approve. A veto, strict no majority, timeout or changed electorate cancels travel; failed writes preserve confirmed state. Cancellation applies a 10-second per-entrance/per-traveler cooldown. Successful travel relocates all saved, non-departed characters using the existing Manhattan-distance spawn algorithm. Pending votes are cleared on restart.
+
+Monster definitions live in rooms and summoned instances in scenes. Only the GM receives the definition catalog, attack formulas and numeric attributes. Player snapshots use explicit public types: public HP includes numbers and ratio, bar-only includes ratio, and hidden HP includes neither. Fog removes unseen monsters and incomplete structures before serialization. Public sprite descriptors contain no preset statistics. Living monsters reserve tiles for movement and spawning; defeated instances remain visible and permit passage.
+
+Combat is GM-triggered against one revealed, living monster and persists its party IDs, round, ordered initiative queue, turn index, status and last action. Each round rolls one d20 plus persisted dexterity for every conscious participant, sorting ties by dexterity then UUID. Players can use only their own active character's configured attack; the GM can act for disconnected characters and chooses conscious targets for monster attacks. Damage is derived from trusted formulas and attributes, clamped to remaining health, and advances the turn automatically. KO participants are skipped. Victory or party defeat resolves the encounter; the GM returns everyone to the map. Removing/hiding the opponent or changing scenes ends the encounter safely.
+
+Dice records are staged during the mutation and published only after persistence. Every new roll is broadcast, even when a large initiative batch exceeds the saved 20-record history cap. Personalized snapshots follow the committed batch. Reconnect restores combat without replaying entry wipes, battler entry or previous impact effects. Native modal focus handling and CSS reduced-motion fallbacks apply to travel, bestiary and arena UI.
+
 ## Contracts
 
-| HTTP route             | Result                                                                                                          |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `GET /api/health`      | Readiness and storage mode                                                                                      |
-| `POST /api/rooms`      | Create from `{ name, nickname, template, classes? }`; return GM credential                                      |
-| `POST /api/rooms/join` | Join from `{ code, nickname, session? }`; restore an authenticated saved seat or return a new player credential |
+| HTTP route                | Result                                                                                                                                |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/health`         | Readiness and storage mode                                                                                                            |
+| `POST /api/rooms`         | Create from `{ name, nickname, template, classes? }`; return GM credential                                                            |
+| `POST /api/rooms/join`    | Join from `{ code, nickname, session? }`; restore an authenticated saved seat or return a new player credential                       |
+| `GET /api/rooms/:code`    | Check whether a saved campaign still exists; missing rooms return 404 and `ROOM_NOT_FOUND`                                            |
+| `DELETE /api/rooms/:code` | GM purge using `Authorization: Bearer <token>` and `X-Member-Id`; authorization errors return 403 and persistence failures return 500 |
 
 HTTP writes require JSON, check browser origin when supplied, cap input size at 32 KB, and rate-limit the remote IP. A proxy's IP is shared unless individual client addresses are separately handled. Socket authentication uses `{ roomCode, memberId, token }`.
+
+DELETE has no JSON body and uses a separate 10-requests/minute allowance; create/join retains 40/minute. Expansion socket mutations use `structure:place`, `poi:configure`, `poi:vote`, `poi:gm_decide`, `room:delete`, `room:leave`, `monster:*` and `combat:*`. The authoritative TypeScript signatures are in `src/types/game.ts`. Lifecycle events include `poi:prompt`, `poi:cancelled`, `poi:unlinked`, `room:destroyed`, `session:ended`, `combat:started` and `combat:ended`; personalized `room:snapshot` remains the source of truth for scene transitions.
 
 | Client event       | Payload                                          | Broadcast        |
 | ------------------ | ------------------------------------------------ | ---------------- |
@@ -98,7 +116,7 @@ Health is part of persisted player sessions and public member state. Unconfigure
 
 The `health:update` gateway persists the authoritative adjustment, emits room-scoped `health:updated` with `{ memberId, health }`, then refreshes personalized snapshots and presence. The client updates both `snapshot.members` and `snapshot.you`, so sidebar, HUD and token bars render the same confirmed HP. Reconnect restores it from storage. Fog hides positions as before; public health does not expose hidden coordinates.
 
-Player tokens show a 24×3 pixel bar above their nameplate: green above half health, amber from one-quarter through one-half, red below one-quarter, and a KO marker at zero. Party rows and the floating HUD show numeric HP, a proportional meter and a textual unconscious status. The existing native dialog provides quick deltas, damage/healing amounts for players, and exact HP, full healing and maximum bonuses for the GM. It restores focus to the opening control after closing. Controls disable while disconnected or saving; health meters respect reduced motion. The GM's selected-player HUD also offers ±1 HP actions. Class cards and summaries preview base/class/subclass maximum HP, and the class manager edits both modifiers. HP is manual bookkeeping; zero does not pause movement or add combat automation.
+Player tokens show a 24×3 pixel bar above their nameplate: green above half health, amber from one-quarter through one-half, red below one-quarter, and a KO marker at zero. Party rows and the floating HUD show numeric HP, a proportional meter and a textual unconscious status. The existing native dialog provides quick deltas, damage/healing amounts for players, and exact HP, full healing and maximum bonuses for the GM. It restores focus to the opening control after closing. Controls disable while disconnected or saving; health meters respect reduced motion. The GM's selected-player HUD also offers ±1 HP actions. Class cards and summaries preview base/class/subclass maximum HP, and the class manager edits both modifiers. HP supports manual bookkeeping during exploration and authoritative damage/KO handling during opt-in combat.
 
 ## Internationalization
 
@@ -114,6 +132,6 @@ Catalog tests verify recursive key and interpolation parity, nonempty messages, 
 
 `GameStore` exposes `load`, `save`, and optional `close`. `FileStore` atomically replaces the complete JSON dataset. `MongoStore` loads three collections and replaces changed documents, saving panels before sessions and room pointers.
 
-MongoDB changes are not a multi-document transaction. Interrupted writes can leave orphan records or a partially applied operation on disk; confirmation is sent only after all writes succeed. Scene removal saves room/session references and surviving panels before deleting removed documents. At least one scene must remain; deleting the active scene activates the first remaining scene and respawns characters. Room archival and session deletion are future work.
+MongoDB changes are not a multi-document transaction. Interrupted writes can leave orphan records or a partially applied operation on disk; confirmation is sent only after all writes succeed. Scene removal saves room/session references and surviving panels before deleting removed documents. At least one scene must remain; deleting the active scene activates the first remaining scene and respawns characters. Campaign deletion uses the same confirmed-write boundary; archival and interrupted-write recovery remain future work.
 
 Both adapters require **one application process and one writer**. All rooms and inactive panels are cached in memory; clients receive only active-panel tiles. Incremental database writes, transactional recovery, archival, and multi-instance coordination are future work. Use persistent Node hosting with WebSocket support, rather than serverless or static export.

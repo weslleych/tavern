@@ -6,11 +6,11 @@ Room, panel, session, and roll IDs are UUID strings; class/subclass/trait IDs ar
 
 ## Records
 
-| Record / collection    | Fields                                                                                                                                 |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `Room` / `rooms`       | `id`, unique `code`, `name`, `gmId`, `activePanelId`, `classes`, optional `rolls`, optional `playersCanMove`, `createdAt`, `updatedAt` |
-| `Panel` / `panels`     | `id`, `roomId`, `name`, `order`, `grid`, sparse `tiles`, optional `fog`, optional `spawnPoint`, `updatedAt`                            |
-| `Session` / `sessions` | `id`, `roomId`, `nickname`, `role`, `tokenHash`, optional `character`, optional `token`, optional `health`                             |
+| Record / collection    | Fields                                                                                                                                                                            |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Room` / `rooms`       | `id`, unique `code`, `name`, `gmId`, `activePanelId`, `classes`, `monsterDefinitions`, optional `rolls`, `travelVote`, `activeCombat`, `playersCanMove`, `createdAt`, `updatedAt` |
+| `Panel` / `panels`     | `id`, `roomId`, `name`, `order`, `grid`, sparse `tiles`, optional `structures`, `monsters`, `fog`, `spawnPoint`, `updatedAt`                                                      |
+| `Session` / `sessions` | `id`, `roomId`, `nickname`, `role`, `tokenHash`, optional `character`, `token`, `health`, `departed`                                                                              |
 
 Rooms own many panels/sessions. `gmId` identifies the creator's session. `activePanelId` selects the whole party's scene. Membership persists; online presence comes from live sockets. Player sessions persist character appearance and map token positions per room. The GM has neither; old GM character/token fields are removed on load. `Room.playersCanMove` defaults to true when absent. `Panel.spawnPoint` is an optional in-bounds `{ x, y }` preference controlled by the GM.
 
@@ -19,18 +19,17 @@ MongoDB indexes room `code` uniquely, panel `{ roomId, order }`, and session `id
 ## Tiles and limits
 
 ```typescript
-type Terrain =
-  | 'empty'
-  | 'grass'
-  | 'forest'
-  | 'water'
-  | 'mountain'
-  | 'stone'
-  | 'wall'
-  | 'sand'
-  | 'snow'
-  | 'flowers';
-type Tile = { x: number; y: number; terrain: Terrain; blocked: boolean; sprite?: string };
+// Full terrain keys are defined by `terrains` in src/types/game.ts.
+type Terrain = (typeof terrains)[number];
+type Tile = {
+  x: number;
+  y: number;
+  terrain: Terrain;
+  blocked: boolean;
+  sprite?: string;
+  structureId?: string;
+  structureRoot?: boolean;
+};
 type Grid = { cols: number; rows: number; tileSize: 32 };
 ```
 
@@ -105,7 +104,27 @@ The GM has no health. Legacy player sessions missing health initialize at their 
 
 Authenticated `health:update` requests accept either absolute `current` (0–999) or signed `delta` (-999–999), optionally combined with `gmBonus` (-100–100). Values must be integers. Empty requests, unknown fields, invalid member UUIDs, and simultaneous `current`/`delta` are rejected. Players may set only their own current HP; changing the GM bonus is denied even when the supplied bonus is zero. The authenticated room GM must supply `memberId` and may adjust any player in that room, including offline players. GM or cross-room targets are rejected. Current HP always clamps to `[0, max]`.
 
-After persistence succeeds, the acknowledgement returns `CharacterHealth`, and the room receives `health:updated` with `{ memberId, health }`, followed by personalized snapshots/presence. Public members and `snapshot.you` include player health; fog continues to redact token positions while HP remains public to the party. Zero HP displays “KO · Unconscious” and does not change movement permissions or automate combat.
+After persistence succeeds, the acknowledgement returns `CharacterHealth`, and the room receives `health:updated` with `{ memberId, health }`, followed by personalized snapshots/presence. Public members and `snapshot.you` include player health; fog continues to redact token positions while HP remains public to the party. Zero HP displays “KO · Unconscious”; in opt-in combat, KO participants are skipped and an all-KO party resolves the encounter.
+
+## Structures and travel
+
+`Panel.structures` stores optional `StructureAnchor[]`: UUID, trusted template key/category, top-left coordinates, dimensions, entrance offset, optional name and destination panel UUID. Child `Tile` records carry `structureId` and `structureRoot`; only the top-left root is true. Four overworld landmarks use 3×3 footprints with a walkable southern entrance. Five city/interior structures use 2×2 blocked footprints. Whole-footprint validation prevents partial imports, duplicate anchors and orphan children.
+
+`Room.travelVote` is optional/null and stores vote UUID, POI/source/destination IDs, display name, initiating member, fixed online `playerIds`, per-player boolean `votes`, `gmApproved` and a millisecond `expiresAt`. Both yes/no decisions require a strict majority; a tie remains pending. Travel also requires GM approval. Restart clears pending votes. Destination changes use deterministic, non-overlapping spawns and preserve HP.
+
+## Monsters and combat
+
+`Room.monsterDefinitions` holds up to 40 definitions. Each has a bounded ID/name, eight-preset sprite key or normalized 32×32 PNG, six integer attributes (-100 to +100), `defaultMaxHp` (1–9999), validated `attackNotation`, `hpVisibility` and optional `isCustom`. Legacy rooms initialize independent copies of the eight presets. New custom definitions default to `1d12`; presets retain their thematic formulas.
+
+`Panel.monsters` holds up to 100 instances: fresh UUID, definition/scene ID, copied name/sprite/attributes/formula, coordinates, `currentHp`, `maxHp`, optional `gmBonusHp` and visibility. Instance edits do not alter definitions, and definition edits do not retroactively alter summoned instances. HP clamps to the effective maximum, capped at 9999. Reviving an instance requires an unoccupied walkable tile. Scene duplication regenerates monster UUIDs. Map exports omit monsters.
+
+`PublicMonster` always includes identity, sprite, position, visibility and a defeat flag. GM recipients additionally get attributes, attack formula, bonus, numbers and ratio. Player `public` visibility includes HP numbers and ratio; `bar_only` includes only ratio; `gm_only` includes neither. Hidden monsters are removed by fog before serialization. Room definition catalogs are GM-only.
+
+`CharacterClass.defaultAttack` optionally stores an attack ID/name/description, canonical `attributeId` and numeric dice notation (for example `1d8`). The server adds the persisted class/subclass attribute; formulas never accept a client-supplied attribute modifier. Built-in classes receive their thematic attacks, including legacy defaults. Custom classes without attacks use `1d6 + STR`.
+
+`Room.activeCombat` is optional/null and stores encounter UUID, scene/monster IDs, participating `partyIds`, `round`, `turnQueue`, `turnIndex`, active/resolved `status` and optional `lastAction` (unique ID, actor/target IDs and action kind). Queue entries contain participant identity/type/name, initiative total and dexterity modifier; they do not duplicate health. Public queues and impact effects contain no monster HP values. `Snapshot.combatParty` supplies encounter characters and current health without map positions, including disconnected participants. Canonical HP remains on sessions and monster instances.
+
+`Session.departed` defaults false. Explicit departure clears the token, revokes authentication, removes the seat from combat, and excludes it from future spawns. Campaign purge removes room, scenes and all sessions after checking persisted GM ownership and matching the room code.
 
 ## Visibility and dice
 
@@ -144,6 +163,6 @@ A snapshot includes the room without `gmId`, ordered panel summaries without ina
 }
 ```
 
-Exports contain maps only, including optional inline tile sprites. Fog, characters, credentials, and dice history are excluded. Import validates version, names, terrain, sprites, bounds, duplicates, and at most 4,096 tiles, then creates and activates a **new scene**. File limit: 512 KB; repeated custom sprites can increase an export beyond that import limit. It never overwrites a scene or restores a private session.
+Exports contain maps and optional `structures`, including inline tile sprites. Fog, characters, monsters, combat, credentials, and dice history are excluded. Import validates version, names, terrain, sprites, bounds, duplicates, complete structure footprints, and at most 4,096 tiles, then creates and activates a **new scene**. Structure IDs are regenerated and destination links cleared. File limit: 512 KB; repeated custom sprites can increase an export beyond that import limit. It never overwrites a scene or restores a private session.
 
 Mutations match the combined `(x, y)` key. MongoDB persistence replaces changed documents by application `id`, rather than using independent coordinate array filters. See [architecture](architecture.md) for transaction and single-process limits.

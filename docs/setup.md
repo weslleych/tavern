@@ -15,6 +15,12 @@ Returning in the same browser restores the private session. Clearing the creator
 
 Choose English, Português, or Español in the Hub or table language select. On mobile tables, open the scene sidebar to reach it. Each browser keeps its own preference; changing language does not change the party's shared names, maps, or game state. Without a saved choice, Tavern uses a supported browser language or falls back to English. The preference cookie is `NEXT_LOCALE`, with a one-year lifetime, and `tavern:locale:v1` in local storage can recover a missing cookie.
 
+For world travel, choose a landmark from the World palette, stamp it, then inspect it with Move or the sidebar to link a destination. Town/dungeon template creation links a new 32×32 scene. A player entering the southern entrance opens a 30-second vote; a strict player majority and GM approval move the whole party.
+
+For combat, open the GM Bestiary, select Summon and choose a free tile. Inspect the monster to adjust HP/privacy or enter Combat View. The active hero uses their class attack; on monster turns the GM selects a conscious target and confirms a damage formula. Initiative rerolls each round. Victory, defeat and retreat preserve HP when returning to the map. New custom monster PNGs are normalized to 32×32 and must fit the bounded sprite payload.
+
+Campaign actions are available in the tabletop and saved-table cards. Deletion requires typing the room code and permanently purges every scene and seat. Leaving an active player seat revokes that credential and frees its token; removing a Hub card only forgets the browser entry. Offline deleted campaigns are removed when reopened.
+
 ## Configuration
 
 Copy `.env.example` to `.env.local` when changing defaults. This file is ignored by Git.

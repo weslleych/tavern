@@ -2,7 +2,9 @@
 
 This plan defines the architecture, data models, canvas rendering, GM summoning tools, and health visibility mechanics for creating and deploying monsters in Tavern. It provides a built-in bestiary of classic fantasy RPG adversaries, full attribute customization for the Game Master (GM), custom/preset pixel-art sprites, and selective health visibility to balance narrative suspense with tactical gameplay.
 
-Status: Planned (Phase 12).
+Status: Implemented and verified (Phase 12).
+
+The reconciled scope and cross-plan decisions are recorded in [execution checklist](expansion_execution.md).
 
 ---
 
@@ -235,40 +237,40 @@ In `src/components/tabletop.tsx`:
 
 ### Phase 12.1: Types, Presets & Zod Schemas
 
-- [ ] Define `MonsterDefinition`, `MonsterInstance`, and `HpVisibility` in `src/types/game.ts`.
-- [ ] Create `defaultMonsters` preset catalog in `src/lib/monsters.ts`.
-- [ ] Add Zod schemas in `src/lib/validation.ts`.
-- [ ] Write unit tests for schema validation and attribute bounds.
+- [x] Define `MonsterDefinition`, `MonsterInstance`, and `HpVisibility` in `src/types/game.ts`.
+- [x] Create `defaultMonsters` preset catalog in `src/lib/monsters.ts`.
+- [x] Add Zod schemas in `src/lib/validation.ts`.
+- [x] Write unit tests for schema validation and attribute bounds.
 
 ### Phase 12.2: Server GameService & Authoritative Storage
 
-- [ ] Extend `Panel` in `src/server/store.ts` to persist `monsters?: MonsterInstance[]`.
-- [ ] Implement `summonMonster`, `moveMonster`, `adjustMonsterHp`, and `removeMonster` in `GameService`.
-- [ ] Implement server-side snapshot redaction based on `HpVisibility`.
+- [x] Extend `Panel` in `src/types/game.ts` (shared by both stores) to persist `monsters?: MonsterInstance[]`.
+- [x] Implement `summonMonster`, `moveMonster`, `adjustMonsterHp`, and `removeMonster` in `GameService`.
+- [x] Implement server-side snapshot redaction based on `HpVisibility`.
 
 ### Phase 12.3: Socket Gateway & Client State Hook
 
-- [ ] Add gateway handlers for `monster:summon`, `monster:move`, `monster:adjust_hp`, and `monster:remove`.
-- [ ] Add personalized broadcasts ensuring player clients never receive redacted data.
-- [ ] Update `use-room.ts` to manage active monsters in the scene.
+- [x] Add gateway handlers for `monster:summon`, `monster:move`, `monster:adjust_hp`, and `monster:remove`.
+- [x] Add personalized broadcasts ensuring player clients never receive redacted data.
+- [x] Update `use-room.ts` to manage active monsters in the scene.
 
 ### Phase 12.4: Canvas 2D Token Rendering & Visuals
 
-- [ ] Implement procedural pixel-art routines for the 8 classic monster presets in `monster-render.ts`.
-- [ ] Implement monster token drawing in `map-canvas.tsx` with crimson indicator ring and conditional health bars.
-- [ ] Add drag-and-drop repositioning for GM on monster tokens.
+- [x] Implement procedural pixel-art routines for the 8 classic monster presets in `monster-render.ts`.
+- [x] Implement monster token drawing in `map-canvas.tsx` with crimson indicator ring and conditional health bars.
+- [x] Add drag-and-drop repositioning for GM on monster tokens.
 
 ### Phase 12.5: GM Bestiary Drawer & Custom Monster Modal
 
-- [ ] Create `BestiaryDrawer` component in `src/components/bestiary-drawer.tsx`.
-- [ ] Create `MonsterFormModal` for creating/editing custom monsters and toggling HP visibility.
-- [ ] Add quick HP adjustment popover for the GM when clicking a monster token on the map.
+- [x] Create `BestiaryDrawer` component in `src/components/bestiary-drawer.tsx`.
+- [x] Create `MonsterFormModal` for creating/editing custom monsters and toggling HP visibility.
+- [x] Add quick HP adjustment popover for the GM when clicking a monster token on the map.
 
 ### Phase 12.6: Automated Testing & Regressions
 
-- [ ] Unit tests for privacy filtering (verifying players never receive raw HP for `gm_only` or `bar_only`).
-- [ ] Integration tests verifying GM-only authorization and persistence across server restarts.
-- [ ] Playwright E2E tests:
+- [x] Unit tests for privacy filtering (verifying players never receive raw HP for `gm_only` or `bar_only`).
+- [x] Integration tests verifying GM-only authorization and persistence across server restarts.
+- [x] Playwright E2E tests:
   - GM summons a monster with `bar_only`.
   - Player view shows only the colored bar without numbers.
   - GM damages monster -> bar updates smoothly on both screens without leaking numeric HP to player console/network.
@@ -282,3 +284,5 @@ In `src/components/tabletop.tsx`:
 3. **Linter**: `npm run lint` passes without warnings.
 4. **Browser E2E Suite**: `npx playwright test tests/e2e/monster-system.spec.ts` passes.
 5. **Production Build**: `npm run build` succeeds.
+
+Verified on 2026-10-04: all 86 unit/domain/integration tests and 36 browser tests pass, together with TypeScript, ESLint, formatting and the production build. See the [execution evidence](expansion_execution.md). Live MongoDB integration was not run because `MONGODB_TEST_URI` is not configured.
